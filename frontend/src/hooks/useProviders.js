@@ -26,42 +26,43 @@ export function useProviders() {
     ''
   );
 
+  // Load providers function
+  const loadProviders = useCallback(async () => {
+    setIsLoadingProviders(true);
+    setProviderError(null);
+    
+    try {
+      const { providers: providerList, hasAvailable } = await fetchProviders();
+      setProviders(providerList);
+      setProvidersReady(hasAvailable);
+      
+      if (hasAvailable) {
+        // Use stored provider if available, otherwise first available
+        const storedProviderAvailable = providerList.some(
+          p => p.id === selectedProvider && p.available
+        );
+        
+        if (!storedProviderAvailable) {
+          const firstAvailable = providerList.find(p => p.available);
+          if (firstAvailable) {
+            setSelectedProvider(firstAvailable.id);
+          }
+        }
+      } else {
+        setProviderError(
+          'No providers are configured. Add credentials or authenticate a CLI provider to continue.'
+        );
+      }
+    } catch (error) {
+      setProviderError('Failed to load providers. Check your connection.');
+      setProvidersReady(false);
+    } finally {
+      setIsLoadingProviders(false);
+    }
+  }, [selectedProvider, setSelectedProvider]);
+
   // Load providers on mount
   useEffect(() => {
-    async function loadProviders() {
-      setIsLoadingProviders(true);
-      setProviderError(null);
-      
-      try {
-        const { providers: providerList, hasAvailable } = await fetchProviders();
-        setProviders(providerList);
-        setProvidersReady(hasAvailable);
-        
-        if (hasAvailable) {
-          // Use stored provider if available, otherwise first available
-          const storedProviderAvailable = providerList.some(
-            p => p.id === selectedProvider && p.available
-          );
-          
-          if (!storedProviderAvailable) {
-            const firstAvailable = providerList.find(p => p.available);
-            if (firstAvailable) {
-              setSelectedProvider(firstAvailable.id);
-            }
-          }
-        } else {
-          setProviderError(
-            'No providers are configured. Add credentials or authenticate a CLI provider to continue.'
-          );
-        }
-      } catch (error) {
-        setProviderError('Failed to load providers. Check your connection.');
-        setProvidersReady(false);
-      } finally {
-        setIsLoadingProviders(false);
-      }
-    }
-    
     loadProviders();
   }, []);
 
@@ -142,6 +143,7 @@ export function useProviders() {
     
     // Actions
     setSelectedProvider: handleProviderChange,
-    setSelectedModel: handleModelChange
+    setSelectedModel: handleModelChange,
+    refreshProviders: loadProviders
   };
 }
