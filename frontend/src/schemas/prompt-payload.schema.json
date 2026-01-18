@@ -1,0 +1,244 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://prompt-assistant.local/schemas/prompt-payload.json",
+  "title": "PromptPayload",
+  "description": "Complete prompt configuration payload for the Prompt Assistant application",
+  "type": "object",
+  "required": ["roughPrompt", "model"],
+  "additionalProperties": false,
+  "properties": {
+    "roughPrompt": {
+      "type": "string",
+      "description": "The user's original prompt text to be refined",
+      "minLength": 1,
+      "maxLength": 50000
+    },
+    "promptType": {
+      "type": "string",
+      "description": "The category/type of prompt being refined",
+      "enum": [
+        "none",
+        "plan-architect",
+        "research",
+        "full-app-build",
+        "update-refactor",
+        "bug-investigation-fix",
+        "code-review"
+      ],
+      "default": "none"
+    },
+    "constraints": {
+      "type": "array",
+      "description": "Optional constraints to apply to the prompt refinement",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Constraint"
+      }
+    },
+    "model": {
+      "$ref": "#/$defs/ModelConfig"
+    },
+    "options": {
+      "$ref": "#/$defs/Options"
+    },
+    "uiState": {
+      "$ref": "#/$defs/UIState"
+    },
+    "clarifications": {
+      "type": "object",
+      "description": "User responses to clarification questions (keyed by clarification ID)",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string" },
+          { "type": "number" },
+          { "type": "boolean" },
+          { "type": "array", "items": { "type": "string" } },
+          { "type": "null" }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "Constraint": {
+      "type": "object",
+      "description": "A single constraint applied to the prompt",
+      "required": ["id", "type", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the constraint",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "type": {
+          "type": "string",
+          "description": "The category of constraint",
+          "enum": [
+            "tone",
+            "length",
+            "output-format",
+            "language",
+            "architecture",
+            "testing-requirements",
+            "error-handling",
+            "security-privacy",
+            "performance",
+            "documentation",
+            "dependencies",
+            "accessibility",
+            "compatibility",
+            "custom"
+          ]
+        },
+        "description": {
+          "type": "string",
+          "description": "User-provided constraint description",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      }
+    },
+    "ModelConfig": {
+      "type": "object",
+      "description": "Selected model configuration",
+      "required": ["provider", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string",
+          "description": "Provider ID (e.g., 'openai', 'claude', 'gemini', 'copilot')",
+          "enum": ["openai", "gemini", "copilot", "claude"]
+        },
+        "name": {
+          "type": "string",
+          "description": "Model ID (e.g., 'gpt-4o', 'sonnet', 'gemini-1.5-pro')"
+        },
+        "version": {
+          "type": "string",
+          "description": "Model version (e.g., '4.5', '2024-01')"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Human-readable display name (e.g., 'Sonnet 4.5', 'GPT-4o')"
+        }
+      }
+    },
+    "Options": {
+      "type": "object",
+      "description": "Additional options for prompt refinement",
+      "additionalProperties": false,
+      "properties": {
+        "learningMode": {
+          "type": "boolean",
+          "description": "Enable learning report generation with feedback on prompt quality",
+          "default": false
+        },
+        "autoCopy": {
+          "type": "boolean",
+          "description": "Automatically copy improved prompt to clipboard",
+          "default": false
+        }
+      }
+    },
+    "UIState": {
+      "type": "object",
+      "description": "Current UI state for persistence and restoration",
+      "additionalProperties": false,
+      "properties": {
+        "inspectorCollapsed": {
+          "type": "boolean",
+          "description": "Whether the inspector panel is collapsed",
+          "default": false
+        },
+        "theme": {
+          "type": "string",
+          "description": "Current color theme",
+          "enum": ["light", "dark", "system"],
+          "default": "system"
+        },
+        "inspectorWidth": {
+          "type": "number",
+          "description": "Width of the inspector panel in pixels",
+          "minimum": 200,
+          "maximum": 600
+        },
+        "lastUpdated": {
+          "type": "string",
+          "description": "ISO timestamp of last update",
+          "format": "date-time"
+        }
+      }
+    },
+    "PromptTypeInfo": {
+      "type": "object",
+      "description": "Metadata about a prompt type category",
+      "required": ["id", "label", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": [
+            "none",
+            "plan-architect",
+            "research",
+            "full-app-build",
+            "update-refactor",
+            "bug-investigation-fix",
+            "code-review"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "description": "Display label for the prompt type"
+        },
+        "description": {
+          "type": "string",
+          "description": "Short description of when to use this type"
+        },
+        "icon": {
+          "type": "string",
+          "description": "Icon identifier for UI display"
+        }
+      }
+    },
+    "ConstraintTypeInfo": {
+      "type": "object",
+      "description": "Metadata about a constraint type",
+      "required": ["id", "label", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": [
+            "tone",
+            "length",
+            "output-format",
+            "resource-time-limits",
+            "security-privacy",
+            "language",
+            "testing-requirements"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "description": "Display label for the constraint type"
+        },
+        "description": {
+          "type": "string",
+          "description": "Short description of this constraint category"
+        },
+        "icon": {
+          "type": "string",
+          "description": "Icon identifier for UI display"
+        },
+        "placeholder": {
+          "type": "string",
+          "description": "Placeholder text for the description input"
+        },
+        "examples": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Example constraint descriptions"
+        }
+      }
+    }
+  }
+}

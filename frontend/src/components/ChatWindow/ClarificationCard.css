@@ -1,0 +1,127 @@
+/**
+ * ClarificationCard Styles
+ */
+
+.clarification-card {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+  margin-left: calc(36px + var(--space-3)); /* Align with message content */
+  animation: fadeInUp var(--duration-slow) var(--ease-out);
+}
+
+.clarification-card__header {
+  margin-bottom: var(--space-4);
+}
+
+.clarification-card__header h3 {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-1);
+}
+
+.clarification-card__header p {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.clarification-card__items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.clarification-item {
+  padding: var(--space-3);
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+}
+
+.clarification-item__question {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.clarification-item__question .required {
+  color: var(--text-error);
+  margin-left: var(--space-1);
+}
+
+.clarification-item__reason {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin: 0 0 var(--space-3);
+}
+
+/* Input styles */
+.clarification-input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  transition: var(--transition-colors), var(--transition-shadow);
+}
+
+.clarification-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+textarea.clarification-input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Checkbox group */
+.clarification-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clarification-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.clarification-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--bg-accent);
+  cursor: pointer;
+}
+
+/* Actions */
+.clarification-card__actions {
+  margin-top: var(--space-4);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

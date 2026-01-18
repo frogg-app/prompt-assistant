@@ -1,0 +1,257 @@
+/**
+ * ConstraintsList Styles
+ */
+
+.constraints-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.constraints-list__items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.constraints-list__empty {
+  margin: 0;
+  padding: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-align: center;
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+/* Constraint item */
+.constraint-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.constraint-item__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.constraint-item__type {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--text-accent);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.constraint-item__remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.constraint-item__remove:hover:not(:disabled) {
+  color: var(--text-error);
+  background-color: var(--bg-error);
+}
+
+.constraint-item__remove:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.constraint-item__remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Add button */
+.constraint-add-button {
+  align-self: flex-start;
+}
+
+.constraint-add-button svg {
+  margin-right: var(--space-1);
+}
+
+/* Add form */
+.constraint-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background-color: var(--bg-tertiary);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.constraint-add-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.constraint-add-form__label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+}
+
+.constraint-add-form__hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.constraint-add-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+/* Native select styling */
+.constraint-select {
+  width: 100%;
+  padding: var(--space-2-5) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.constraint-select:hover {
+  border-color: var(--border-strong);
+}
+
+.constraint-select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+.constraint-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Presets section */
+.constraint-add-form__presets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.constraint-add-form__presets-label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+}
+
+.constraint-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+}
+
+.constraint-preset {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-colors);
+  white-space: nowrap;
+}
+
+.constraint-preset:hover:not(:disabled) {
+  background-color: var(--bg-accent-subtle);
+  border-color: var(--border-accent);
+  color: var(--text-accent);
+}
+
+.constraint-preset--selected {
+  background-color: var(--bg-accent-subtle);
+  border-color: var(--border-accent);
+  color: var(--text-accent);
+}
+
+.constraint-preset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Add section with quick add */
+.constraint-add-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.constraint-quick-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.constraint-quick-add__label {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.constraint-quick-add__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+}
+
+.constraint-chip {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.constraint-chip:hover:not(:disabled) {
+  background-color: var(--bg-accent-subtle);
+  border-color: var(--border-accent);
+  color: var(--text-accent);
+}
+
+.constraint-chip:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.constraint-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

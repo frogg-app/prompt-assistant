@@ -1,0 +1,219 @@
+/**
+ * InspectorPanel Styles
+ */
+
+/* Mobile backdrop */
+.inspector-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: var(--z-overlay);
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Panel container */
+.inspector-panel {
+  position: fixed;
+  top: var(--header-height);
+  right: 0;
+  height: calc(100vh - var(--header-height));
+  width: var(--inspector-width);
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
+  border-left: 1px solid var(--border-default);
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: var(--z-panel);
+  overflow: hidden;
+}
+
+.inspector-panel--open {
+  transform: translateX(0);
+}
+
+/* Panel header */
+.inspector-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-default);
+  background-color: var(--bg-secondary);
+}
+
+.inspector-panel__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.inspector-panel__title h2 {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+}
+
+.inspector-panel__title svg {
+  color: var(--text-secondary);
+}
+
+.inspector-panel__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.inspector-panel__close:hover {
+  color: var(--text-primary);
+  background-color: var(--interactive-hover);
+}
+
+.inspector-panel__close:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* Panel body */
+.inspector-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3);
+}
+
+/* Section component */
+.inspector-section {
+  margin-bottom: var(--space-2);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.inspector-section__header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-3);
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.inspector-section__header:hover {
+  background-color: var(--interactive-hover);
+}
+
+.inspector-section__header:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+
+.inspector-section__icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+}
+
+.inspector-section__title {
+  flex: 1;
+  text-align: left;
+}
+
+.inspector-section__header svg:last-child {
+  color: var(--text-tertiary);
+}
+
+.inspector-section__content {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.inspector-section__content[hidden] {
+  display: none;
+}
+
+/* Panel footer */
+.inspector-panel__footer {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-default);
+  background-color: var(--bg-secondary);
+}
+
+.inspector-panel__hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+/* Responsive - mobile */
+@media (max-width: 768px) {
+  .inspector-backdrop {
+    display: block;
+  }
+  
+  .inspector-panel {
+    top: 0;
+    width: 100%;
+    max-width: 360px;
+    border-left: none;
+    box-shadow: var(--shadow-xl);
+  }
+  
+  .inspector-panel__header {
+    padding-top: calc(var(--space-3) + env(safe-area-inset-top, 0px));
+  }
+}
+
+/* Responsive - larger screens */
+@media (min-width: 1200px) {
+  .inspector-panel {
+    position: relative;
+    top: 0;
+    transform: none;
+    border-left: 1px solid var(--border-default);
+    flex-shrink: 0;
+  }
+  
+  .inspector-panel--open {
+    transform: none;
+  }
+  
+  .inspector-panel__close {
+    display: none;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .inspector-panel {
+    transition: none;
+  }
+  
+  .inspector-backdrop {
+    animation: none;
+  }
+}

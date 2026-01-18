@@ -1,0 +1,62 @@
+/**
+ * Header Component Styles
+ */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-height);
+  padding: 0 var(--space-4);
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-default);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+
+.header__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-accent);
+}
+
+.header__title {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.header__action-text {
+  display: none;
+}
+
+/* Show text labels on larger screens */
+@media (min-width: 640px) {
+  .header {
+    padding: 0 var(--space-6);
+  }
+  
+  .header__action-text {
+    display: inline;
+  }
+  
+  .header__actions {
+    gap: var(--space-2);
+  }
+}
+
+/* Hide inspector toggle on mobile (use bottom sheet instead) */
+@media (max-width: 767px) {
+  .header__inspector-toggle {
+    display: none;
+  }
+}
