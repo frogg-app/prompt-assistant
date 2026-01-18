@@ -807,7 +807,8 @@ app.post("/providers", async (req, res) => {
     }
     
     // Validate provider ID format with length and position restrictions
-    if (!/^[a-z][a-z0-9-]{0,30}[a-z0-9]$/.test(id)) {
+    // Must start with letter, be 2-32 chars, and end with letter/number
+    if (id.length < 2 || id.length > 32 || !/^[a-z][a-z0-9-]*[a-z0-9]$/.test(id)) {
       return res.status(400).json({ 
         error: "Provider ID must start with a letter, end with a letter or number, contain only lowercase letters, numbers, and dashes, and be between 2-32 characters" 
       });
