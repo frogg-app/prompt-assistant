@@ -38,7 +38,8 @@ export default function ProviderManager({
   };
 
   const handleDeleteProvider = async (providerId) => {
-    if (!confirm('Are you sure you want to delete this provider?')) {
+    // TODO: Replace with proper confirmation modal for better accessibility
+    if (!window.confirm('Are you sure you want to delete this provider?')) {
       return;
     }
 
@@ -47,7 +48,8 @@ export default function ProviderManager({
       await onProviderDeleted(providerId);
       setView('list');
     } catch (error) {
-      alert(`Failed to delete provider: ${error.message}`);
+      // TODO: Replace alert with toast notification or inline error display
+      window.alert(`Failed to delete provider: ${error.message}`);
     } finally {
       setIsDeleting(false);
     }

@@ -715,27 +715,50 @@ app.get("/models", async (req, res) => {
       models = FALLBACK_MODELS.copilot;
       note = "Copilot CLI manages model selection.";
     } else if (provider.config?.type === "openai_compatible") {
-      // For OpenAI-compatible APIs
+      // For OpenAI-compatible APIs with security controls
       const apiKey = provider.config?.api_key || 
                     (provider.config?.env_var ? process.env[provider.config.env_var] : null);
       const baseUrl = provider.config?.base_url;
       
       if (apiKey && baseUrl) {
         try {
+          // Validate URL
+          const url = new URL(baseUrl);
+          if (!['http:', 'https:'].includes(url.protocol)) {
+            throw new Error('Invalid protocol');
+          }
+          
+          // Create abort controller for timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+          
           const response = await fetch(`${baseUrl}/models`, {
-            headers: { Authorization: `Bearer ${apiKey}` }
+            headers: { Authorization: `Bearer ${apiKey}` },
+            signal: controller.signal
           });
           
+          clearTimeout(timeoutId);
+          
           if (response.ok) {
+            // Check response size
+            const contentLength = response.headers.get('content-length');
+            if (contentLength && parseInt(contentLength) > 5 * 1024 * 1024) {
+              throw new Error('Response too large');
+            }
+            
             const data = await response.json();
             models = Array.isArray(data.data) 
-              ? data.data.map(m => ({ id: m.id, label: m.id }))
+              ? data.data.map(m => ({ id: m.id, label: m.id })).slice(0, 1000) // Limit to 1000 models
               : [];
             isDynamic = true;
           }
         } catch (error) {
+          if (error.name === 'AbortError') {
+            note = "Request timeout; using configured list.";
+          } else {
+            note = "Failed to fetch models from API; using configured list.";
+          }
           models = provider.models || [];
-          note = "Failed to fetch models from API; using configured list.";
         }
       } else {
         models = provider.models || [];
@@ -783,11 +806,27 @@ app.post("/providers", async (req, res) => {
       });
     }
     
-    // Validate provider ID format (alphanumeric and dashes only)
-    if (!/^[a-z0-9-]+$/.test(id)) {
+    // Validate provider ID format with length and position restrictions
+    if (!/^[a-z][a-z0-9-]{0,30}[a-z0-9]$/.test(id)) {
       return res.status(400).json({ 
-        error: "Provider ID must contain only lowercase letters, numbers, and dashes" 
+        error: "Provider ID must start with a letter, end with a letter or number, contain only lowercase letters, numbers, and dashes, and be between 2-32 characters" 
       });
+    }
+    
+    // Validate URL if provided
+    if (config.base_url) {
+      try {
+        const url = new URL(config.base_url);
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          return res.status(400).json({
+            error: "Base URL must use HTTP or HTTPS protocol"
+          });
+        }
+      } catch (error) {
+        return res.status(400).json({
+          error: "Invalid base URL format"
+        });
+      }
     }
     
     const provider = {
@@ -887,21 +926,56 @@ app.get("/providers/:id/available-models", async (req, res) => {
             models = await fetchGeminiModels(apiKey);
           }
         } else if (provider.config?.type === "openai_compatible") {
-          // For OpenAI-compatible APIs, try to fetch models
+          // For OpenAI-compatible APIs, try to fetch models with security controls
           const apiKey = provider.config?.api_key || 
                         (provider.config?.env_var ? process.env[provider.config.env_var] : null);
           const baseUrl = provider.config?.base_url;
           
           if (apiKey && baseUrl) {
-            const response = await fetch(`${baseUrl}/models`, {
-              headers: { Authorization: `Bearer ${apiKey}` }
-            });
+            // Validate URL before making request
+            try {
+              const url = new URL(baseUrl);
+              if (!['http:', 'https:'].includes(url.protocol)) {
+                throw new Error('Invalid protocol');
+              }
+            } catch (error) {
+              console.error(`Invalid base URL for provider ${providerId}:`, error);
+              models = [];
+            }
             
-            if (response.ok) {
-              const data = await response.json();
-              models = Array.isArray(data.data) 
-                ? data.data.map(m => ({ id: m.id, label: m.id }))
-                : [];
+            if (models.length === 0) {
+              // Create abort controller for timeout
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+              
+              try {
+                const response = await fetch(`${baseUrl}/models`, {
+                  headers: { Authorization: `Bearer ${apiKey}` },
+                  signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                  // Limit response size
+                  const contentLength = response.headers.get('content-length');
+                  if (contentLength && parseInt(contentLength) > 5 * 1024 * 1024) {
+                    throw new Error('Response too large');
+                  }
+                  
+                  const data = await response.json();
+                  models = Array.isArray(data.data) 
+                    ? data.data.map(m => ({ id: m.id, label: m.id })).slice(0, 1000) // Limit to 1000 models
+                    : [];
+                }
+              } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                  console.error(`Request timeout for provider ${providerId}`);
+                } else {
+                  console.error(`Failed to fetch models for ${providerId}:`, error);
+                }
+              }
             }
           }
         }

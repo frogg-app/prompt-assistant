@@ -23,9 +23,12 @@ export default function ModelFilter({ provider, onSubmit, onCancel }) {
     setError('');
 
     try {
+      // Encode provider ID to prevent path traversal
+      const encodedProviderId = encodeURIComponent(provider.id);
+      
       // Fetch all available models for the provider
       const availableResponse = await fetch(
-        `${API_BASE}/providers/${provider.id}/available-models`
+        `${API_BASE}/providers/${encodedProviderId}/available-models`
       );
       
       if (!availableResponse.ok) {
@@ -37,7 +40,7 @@ export default function ModelFilter({ provider, onSubmit, onCancel }) {
 
       // Fetch currently filtered models
       const filteredResponse = await fetch(
-        `${API_BASE}/providers/${provider.id}/filtered-models`
+        `${API_BASE}/providers/${encodedProviderId}/filtered-models`
       );
       
       if (filteredResponse.ok) {
@@ -75,8 +78,9 @@ export default function ModelFilter({ provider, onSubmit, onCancel }) {
     setError('');
 
     try {
+      const encodedProviderId = encodeURIComponent(provider.id);
       const response = await fetch(
-        `${API_BASE}/providers/${provider.id}/filtered-models`,
+        `${API_BASE}/providers/${encodedProviderId}/filtered-models`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },

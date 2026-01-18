@@ -54,20 +54,28 @@ export default function ProviderForm({ provider, onSubmit, onCancel, isEdit = fa
     setError('');
 
     try {
-      // For new providers, we need to validate without saving
-      const testPayload = {
-        id: formData.id || 'test',
-        name: formData.name || 'Test Provider',
-        config: {
-          type: formData.config_type,
-          base_url: formData.base_url,
-          api_key: formData.api_key,
-          env_var: formData.env_var
+      // Validate URL format before testing
+      if (formData.config_type === 'openai_compatible') {
+        try {
+          const url = new URL(formData.base_url);
+          // Only allow http/https protocols
+          if (!['http:', 'https:'].includes(url.protocol)) {
+            throw new Error('Only HTTP and HTTPS protocols are allowed');
+          }
+        } catch (urlError) {
+          setTestResult({
+            success: false,
+            message: 'Invalid URL format. Please provide a valid HTTP/HTTPS URL.'
+          });
+          setIsTesting(false);
+          return;
         }
-      };
+      }
 
       // Test by attempting to fetch models
       if (formData.config_type === 'openai_compatible' && formData.base_url && formData.api_key) {
+        // Note: This makes a direct client-side request for testing
+        // In production, consider proxying through backend for better security
         const response = await fetch(`${formData.base_url}/models`, {
           headers: { 
             'Authorization': `Bearer ${formData.api_key}`,
