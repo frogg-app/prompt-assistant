@@ -128,10 +128,20 @@ You can set env vars locally via `.env`, or pass them to Docker with `--env-file
 
 ## API endpoints
 
+### Core endpoints
 - `GET /health` -> `{ ok: true }`
-- `GET /providers`
-- `GET /models?provider=openai|gemini|copilot|claude`
-- `POST /improve`
+- `GET /providers` - List all providers (built-in and custom)
+- `GET /models?provider=<id>` - Get models for a provider
+- `POST /improve` - Improve a prompt
+
+### Provider management endpoints
+- `POST /providers` - Add a custom provider
+- `PUT /providers/:id` - Update a custom provider
+- `DELETE /providers/:id` - Delete a custom provider
+- `POST /providers/:id/test` - Test provider connection
+- `GET /providers/:id/available-models` - Get all available models for a provider
+- `GET /providers/:id/filtered-models` - Get filtered models for a provider
+- `PUT /providers/:id/filtered-models` - Set model filter for a provider
 
 `POST /improve` payload:
 
@@ -145,6 +155,50 @@ You can set env vars locally via `.env`, or pass them to Docker with `--env-file
   "clarifications": null
 }
 ```
+
+`POST /providers` payload:
+
+```json
+{
+  "id": "ollama",
+  "name": "Ollama",
+  "supports_dynamic_models": true,
+  "config": {
+    "type": "openai_compatible",
+    "base_url": "http://localhost:11434/v1",
+    "api_key": "optional-api-key",
+    "env_var": "OLLAMA_API_KEY"
+  },
+  "models": []
+}
+```
+
+## Custom Providers
+
+You can now add custom LLM providers through the UI:
+
+1. Click "Manage Providers" in the Options panel
+2. Click "Add Custom Provider"
+3. Fill in provider details:
+   - **Provider ID**: Unique identifier (lowercase, numbers, dashes)
+   - **Provider Name**: Display name
+   - **Provider Type**: OpenAI-compatible or Custom API
+   - **Base URL**: API endpoint (e.g., `http://localhost:11434/v1` for Ollama)
+   - **API Key**: Optional, or use environment variable
+   - **Environment Variable**: Alternative to storing API key
+4. Test the connection to verify it works
+5. Add provider and start using it
+
+### Supported provider types:
+- **OpenAI-compatible**: LM Studio, Ollama, LocalAI, vLLM, and other OpenAI-compatible APIs
+- **Custom API**: Any API with key-based authentication
+
+### Model filtering:
+- Click "Filter Models" on any provider to select which models appear in the UI
+- Useful for hiding unused models or focusing on specific model versions
+- Leave all unchecked to show all models
+
+Provider configurations are stored in `~/.prompt-assistant/providers.json`
 
 ## Troubleshooting
 
