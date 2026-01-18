@@ -3,6 +3,7 @@ const os = require("os");
 const fs = require("fs/promises");
 const { spawn } = require("child_process");
 const express = require("express");
+const providersStorage = require("./providers-storage");
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -11,13 +12,6 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(PUBLIC_DIR));
-
-const PROVIDERS = [
-  { id: "openai", name: "OpenAI", supports_dynamic_models: true },
-  { id: "gemini", name: "Google Gemini", supports_dynamic_models: true },
-  { id: "copilot", name: "Copilot CLI", supports_dynamic_models: false },
-  { id: "claude", name: "Claude Code", supports_dynamic_models: false }
-];
 
 const FALLBACK_MODELS = {
   openai: [
@@ -234,8 +228,9 @@ const CLI_JSON_SCHEMA = JSON.stringify({
   ]
 });
 
-function providerById(id) {
-  return PROVIDERS.find((provider) => provider.id === id);
+async function providerById(id) {
+  const providers = await providersStorage.getAllProviders();
+  return providers.find((provider) => provider.id === id);
 }
 
 function safeJsonParse(text) {
@@ -585,7 +580,11 @@ function providerSetup(providerId) {
   }
 }
 
-async function providerAvailability(providerId) {
+async function providerAvailability(provider) {
+  const providerId = provider.id;
+  const config = provider.config || {};
+  
+  // Built-in providers with specific logic
   if (providerId === "openai") {
     if (process.env.OPENAI_API_KEY) {
       return { available: true, reason: "" };
@@ -627,7 +626,31 @@ async function providerAvailability(providerId) {
     };
   }
 
-  return { available: false, reason: "Unknown provider." };
+  // Custom providers
+  if (config.type === "api_key") {
+    // Check if API key is provided in config or env
+    if (config.api_key) {
+      return { available: true, reason: "" };
+    }
+    if (config.env_var && process.env[config.env_var]) {
+      return { available: true, reason: "" };
+    }
+    return { 
+      available: false, 
+      reason: `API key not configured${config.env_var ? ` (set ${config.env_var} or configure in provider settings)` : ''}.` 
+    };
+  }
+
+  if (config.type === "openai_compatible") {
+    // Check if API endpoint and key are provided
+    if (config.base_url && (config.api_key || (config.env_var && process.env[config.env_var]))) {
+      return { available: true, reason: "" };
+    }
+    return { available: false, reason: "API endpoint and key not configured." };
+  }
+
+  // Default: assume unavailable
+  return { available: false, reason: "Provider not configured." };
 }
 
 app.get("/health", (req, res) => {
@@ -635,88 +658,306 @@ app.get("/health", (req, res) => {
 });
 
 app.get("/providers", async (req, res) => {
-  const providers = await Promise.all(
-    PROVIDERS.map(async (provider) => {
-      const availability = await providerAvailability(provider.id);
-      return {
-        ...provider,
-        available: availability.available,
-        unavailable_reason: availability.reason,
-        setup: providerSetup(provider.id)
-      };
-    })
-  );
-  res.json({ providers });
+  try {
+    const allProviders = await providersStorage.getAllProviders();
+    const providers = await Promise.all(
+      allProviders.map(async (provider) => {
+        const availability = await providerAvailability(provider);
+        return {
+          ...provider,
+          available: availability.available,
+          unavailable_reason: availability.reason,
+          setup: providerSetup(provider.id)
+        };
+      })
+    );
+    res.json({ providers });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to load providers" });
+  }
 });
 
 app.get("/models", async (req, res) => {
   const providerId = String(req.query.provider || "").toLowerCase();
-  const provider = providerById(providerId);
+  const provider = await providerById(providerId);
 
   if (!provider) {
     return res.status(400).json({ error: "Unknown provider" });
   }
 
   try {
+    let models = [];
+    let isDynamic = false;
+    let note = "";
+    
     if (providerId === "openai") {
-      const apiKey = process.env.OPENAI_API_KEY;
+      const apiKey = provider.config?.api_key || process.env.OPENAI_API_KEY;
       if (!apiKey) {
-        return res.json({
-          provider: providerId,
-          is_dynamic: false,
-          models: FALLBACK_MODELS.openai,
-          note: "OPENAI_API_KEY not set; using fallback list."
-        });
+        models = FALLBACK_MODELS.openai;
+        note = "OPENAI_API_KEY not set; using fallback list.";
+      } else {
+        models = await fetchOpenAIModels(apiKey);
+        isDynamic = true;
       }
-      const models = await fetchOpenAIModels(apiKey);
-      return res.json({ provider: providerId, is_dynamic: true, models });
-    }
-
-    if (providerId === "gemini") {
-      const apiKey = process.env.GEMINI_API_KEY;
+    } else if (providerId === "gemini") {
+      const apiKey = provider.config?.api_key || process.env.GEMINI_API_KEY;
       if (!apiKey) {
-        return res.json({
-          provider: providerId,
-          is_dynamic: false,
-          models: FALLBACK_MODELS.gemini,
-          note: "GEMINI_API_KEY not set; using fallback list."
-        });
+        models = FALLBACK_MODELS.gemini;
+        note = "GEMINI_API_KEY not set; using fallback list.";
+      } else {
+        models = await fetchGeminiModels(apiKey);
+        isDynamic = true;
       }
-      const models = await fetchGeminiModels(apiKey);
-      return res.json({ provider: providerId, is_dynamic: true, models });
+    } else if (providerId === "claude") {
+      models = FALLBACK_MODELS.claude;
+      note = "Claude Code models are CLI aliases.";
+    } else if (providerId === "copilot") {
+      models = FALLBACK_MODELS.copilot;
+      note = "Copilot CLI manages model selection.";
+    } else if (provider.config?.type === "openai_compatible") {
+      // For OpenAI-compatible APIs
+      const apiKey = provider.config?.api_key || 
+                    (provider.config?.env_var ? process.env[provider.config.env_var] : null);
+      const baseUrl = provider.config?.base_url;
+      
+      if (apiKey && baseUrl) {
+        try {
+          const response = await fetch(`${baseUrl}/models`, {
+            headers: { Authorization: `Bearer ${apiKey}` }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            models = Array.isArray(data.data) 
+              ? data.data.map(m => ({ id: m.id, label: m.id }))
+              : [];
+            isDynamic = true;
+          }
+        } catch (error) {
+          models = provider.models || [];
+          note = "Failed to fetch models from API; using configured list.";
+        }
+      } else {
+        models = provider.models || [];
+        note = "API key not configured; using configured list.";
+      }
+    } else {
+      // Custom provider with static model list
+      models = provider.models || [];
     }
-
-    if (providerId === "claude") {
-      return res.json({
-        provider: providerId,
-        is_dynamic: false,
-        models: FALLBACK_MODELS.claude,
-        note: "Claude Code models are CLI aliases."
-      });
+    
+    // Apply model filtering if configured
+    const filteredModelIds = await providersStorage.getFilteredModels(providerId);
+    if (filteredModelIds && filteredModelIds.length > 0) {
+      models = models.filter(m => filteredModelIds.includes(m.id));
+      if (!note) {
+        note = `Showing ${models.length} filtered model(s).`;
+      }
     }
-
-    if (providerId === "copilot") {
-      return res.json({
-        provider: providerId,
-        is_dynamic: false,
-        models: FALLBACK_MODELS.copilot,
-        note: "Copilot CLI manages model selection."
-      });
-    }
-
-    return res.json({
-      provider: providerId,
-      is_dynamic: false,
-      models: []
+    
+    return res.json({ 
+      provider: providerId, 
+      is_dynamic: isDynamic, 
+      models,
+      note: note || undefined
     });
   } catch (error) {
-    const fallback = FALLBACK_MODELS[providerId] || [];
+    const fallback = FALLBACK_MODELS[providerId] || provider.models || [];
     return res.json({
       provider: providerId,
       is_dynamic: false,
       models: fallback,
       note: `Using fallback list: ${error.message}`
     });
+  }
+});
+
+// POST /providers - Add a new provider
+app.post("/providers", async (req, res) => {
+  try {
+    const { id, name, config, supports_dynamic_models, models } = req.body;
+    
+    if (!id || !name || !config) {
+      return res.status(400).json({ 
+        error: "Missing required fields: id, name, config" 
+      });
+    }
+    
+    // Validate provider ID format (alphanumeric and dashes only)
+    if (!/^[a-z0-9-]+$/.test(id)) {
+      return res.status(400).json({ 
+        error: "Provider ID must contain only lowercase letters, numbers, and dashes" 
+      });
+    }
+    
+    const provider = {
+      id,
+      name,
+      config,
+      supports_dynamic_models: Boolean(supports_dynamic_models),
+      models: models || []
+    };
+    
+    const newProvider = await providersStorage.addProvider(provider);
+    res.status(201).json({ provider: newProvider });
+  } catch (error) {
+    if (error.message === "Provider ID already exists") {
+      res.status(409).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "Failed to add provider" });
+    }
+  }
+});
+
+// PUT /providers/:id - Update a provider
+app.put("/providers/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    const updatedProvider = await providersStorage.updateProvider(id, updates);
+    res.json({ provider: updatedProvider });
+  } catch (error) {
+    if (error.message === "Provider not found or is built-in") {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "Failed to update provider" });
+    }
+  }
+});
+
+// DELETE /providers/:id - Delete a provider
+app.delete("/providers/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await providersStorage.deleteProvider(id);
+    res.status(204).send();
+  } catch (error) {
+    if (error.message === "Provider not found or is built-in") {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "Failed to delete provider" });
+    }
+  }
+});
+
+// POST /providers/:id/test - Test provider connection
+app.post("/providers/:id/test", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const provider = await providersStorage.getProvider(id);
+    
+    if (!provider) {
+      return res.status(404).json({ error: "Provider not found" });
+    }
+    
+    const availability = await providerAvailability(provider);
+    res.json({ 
+      success: availability.available,
+      message: availability.available ? "Provider is configured correctly" : availability.reason
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to test provider" });
+  }
+});
+
+// GET /providers/:id/available-models - Get all available models for a provider
+app.get("/providers/:id/available-models", async (req, res) => {
+  try {
+    const providerId = req.params.id;
+    const provider = await providersStorage.getProvider(providerId);
+    
+    if (!provider) {
+      return res.status(404).json({ error: "Provider not found" });
+    }
+    
+    let models = [];
+    
+    // Try to fetch dynamic models for supported providers
+    if (provider.supports_dynamic_models) {
+      try {
+        if (providerId === "openai") {
+          const apiKey = provider.config?.api_key || process.env.OPENAI_API_KEY;
+          if (apiKey) {
+            models = await fetchOpenAIModels(apiKey);
+          }
+        } else if (providerId === "gemini") {
+          const apiKey = provider.config?.api_key || process.env.GEMINI_API_KEY;
+          if (apiKey) {
+            models = await fetchGeminiModels(apiKey);
+          }
+        } else if (provider.config?.type === "openai_compatible") {
+          // For OpenAI-compatible APIs, try to fetch models
+          const apiKey = provider.config?.api_key || 
+                        (provider.config?.env_var ? process.env[provider.config.env_var] : null);
+          const baseUrl = provider.config?.base_url;
+          
+          if (apiKey && baseUrl) {
+            const response = await fetch(`${baseUrl}/models`, {
+              headers: { Authorization: `Bearer ${apiKey}` }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              models = Array.isArray(data.data) 
+                ? data.data.map(m => ({ id: m.id, label: m.id }))
+                : [];
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to fetch models for ${providerId}:`, error);
+      }
+    }
+    
+    // Fall back to configured models
+    if (models.length === 0 && provider.models) {
+      models = provider.models;
+    }
+    
+    res.json({ 
+      provider: providerId,
+      models,
+      is_dynamic: provider.supports_dynamic_models && models.length > 0
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch available models" });
+  }
+});
+
+// GET /providers/:id/filtered-models - Get filtered models for a provider
+app.get("/providers/:id/filtered-models", async (req, res) => {
+  try {
+    const providerId = req.params.id;
+    const filteredModels = await providersStorage.getFilteredModels(providerId);
+    
+    res.json({ 
+      provider: providerId,
+      filtered_models: filteredModels
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get filtered models" });
+  }
+});
+
+// PUT /providers/:id/filtered-models - Set filtered models for a provider
+app.put("/providers/:id/filtered-models", async (req, res) => {
+  try {
+    const providerId = req.params.id;
+    const { model_ids } = req.body;
+    
+    if (!Array.isArray(model_ids)) {
+      return res.status(400).json({ error: "model_ids must be an array" });
+    }
+    
+    await providersStorage.setFilteredModels(providerId, model_ids);
+    
+    res.json({ 
+      provider: providerId,
+      filtered_models: model_ids
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to set filtered models" });
   }
 });
 
