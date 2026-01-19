@@ -1,5 +1,5 @@
 {
-  "name": "prompt-improver-backend",
+  "name": "prompt-assistant-backend",
   "version": "0.1.0",
   "private": true,
   "main": "server.js",
