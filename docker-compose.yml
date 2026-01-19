@@ -1,8 +1,8 @@
 services:
-  prompt-improver:
+  prompt-assistant:
     build: .
     ports:
-      - "8080:8080"
+      - "37400:8080"
     env_file:
       - .env
     restart: unless-stopped

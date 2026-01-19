@@ -51,9 +51,9 @@ Then run `copilot` or `claude` once and use `/login` to authenticate.
 ### Docker build/run
 
 ```bash
-docker build -t prompt-improver .
+docker build -t prompt-assistant .
 
-docker run --rm -p 8080:8080 --env-file .env prompt-improver
+docker run --rm -p 8080:8080 --env-file .env prompt-assistant
 ```
 
 To persist Copilot/Claude CLI auth in Docker, mount their config files:
@@ -63,10 +63,10 @@ docker run --rm -p 8080:8080 --env-file .env \
   -v "$HOME/.copilot:/home/app/.copilot" \
   -v "$HOME/.claude:/home/app/.claude" \
   -v "$HOME/.claude.json:/home/app/.claude.json" \
-  prompt-improver
+  prompt-assistant
 ```
 
-If you prefer OAuth login in-container, run `docker exec -it prompt-improver copilot` (or `claude`) and follow `/login`.
+If you prefer OAuth login in-container, run `docker exec -it prompt-assistant copilot` (or `claude`) and follow `/login`.
 
 ### Docker Compose
 
