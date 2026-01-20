@@ -8,51 +8,80 @@
 		"version": "2.0.0",
 		"tasks": [
 			{
-				"label": "Build Prompt Assistant",
+				"label": "Build Image",
 				"type": "shell",
 				"command": "docker build -t prompt-assistant .",
 				"problemMatcher": []
 			},
 			{
-				"label": "Run Prompt Assistant",
+				"label": "Clean Build Image",
+				"type": "shell",
+				"command": "docker build --no-cache -t prompt-assistant .",
+				"problemMatcher": []
+			},
+			{
+				"label": "Run Docker Container",
 				"type": "shell",
 				"command": "docker compose up -d",
 				"problemMatcher": []
 			},
 			{
-				"label": "Stop Prompt Assistant",
+				"label": "Stop Docker Container",
 				"type": "shell",
 				"command": "docker compose down",
 				"problemMatcher": []
 			},
 			{
-				"label": "Remove Prompt Assistant Image",
+				"label": "Remove Docker Image",
 				"type": "shell",
 				"command": "docker rmi prompt-assistant",
 				"problemMatcher": []
 			},
+						{
+				"label": "Open Docker Logs",
+				"type": "shell",
+				"command": "docker compose logs -f",
+				"problemMatcher": []
+			},
 			{
-				"label": "Rebuild and Restart Prompt Assistant",
+				"label": "Rebuild and Restart",
 				"type": "shell",
 				"dependsOrder": "sequence",
 				"dependsOn": [
-					"Stop Prompt Assistant",
-					"Remove Prompt Assistant Image",
-					"Build Prompt Assistant",
-					"Run Prompt Assistant"
+					"Stop Docker Container",
+					"Remove Docker Image",
+					"Build Image",
+					"Run Docker Container"
 				],
 				"group": {
 					"kind": "build",
-					"isDefault": true
 				},
 				"problemMatcher": []
 			},
 			{
-				"label": "Open Prompt Assistant Logs",
+				"label": "Clean Rebuild and Restart",
 				"type": "shell",
-				"command": "docker compose logs -f",
+				"dependsOrder": "sequence",
+				"dependsOn": [
+					"Stop Docker Container",
+					"Remove Docker Image",
+					"Clean Build Image",
+					"Run Docker Container"
+				],
+				"group": {
+					"kind": "build",
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "Run Frontend Tests",
+				"type": "shell",
+				"command": "cd frontend && npm test",
 				"problemMatcher": []
 			}
 		]
+	},
+	"settings": {
+		"chat.agent.maxRequests": 500,
 	}
 }
