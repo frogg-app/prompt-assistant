@@ -8,5 +8,4 @@ services:
       - .env
     volumes:
       - "$HOME/.claude:/home/app/.claude"
-      - "$HOME/.copilot:/home/app/.copilot"
     restart: unless-stopped
