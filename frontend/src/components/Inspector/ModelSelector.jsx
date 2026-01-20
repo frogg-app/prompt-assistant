@@ -131,23 +131,17 @@ export default function ModelSelector({
         </p>
       </div>
 
-      {/* Selected Model Summary */}
-      {currentProvider && currentModel && (
-        <div className="model-selector__summary" aria-live="polite">
-          <div className="model-selector__summary-row">
-            <span className="model-selector__summary-label">Selected:</span>
-            <span className="model-selector__summary-value">
-              {currentProvider.name} / {formatModelName(currentModel)}
-            </span>
-          </div>
-          {currentModel.contextWindow && (
-            <div className="model-selector__summary-row">
-              <span className="model-selector__summary-label">Context:</span>
-              <span className="model-selector__summary-value">
-                {currentModel.contextWindow.toLocaleString()} tokens
-              </span>
-            </div>
-          )}
+      {/* Model Context Info */}
+      {currentProvider && currentModel && currentModel.contextWindow && (
+        <div className="model-selector__info" aria-live="polite">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="model-selector__info-icon">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 16v-4" />
+            <path d="M12 8h.01" />
+          </svg>
+          <span className="model-selector__info-text">
+            Context: {currentModel.contextWindow.toLocaleString()} tokens
+          </span>
         </div>
       )}
     </div>

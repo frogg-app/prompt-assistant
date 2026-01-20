@@ -207,38 +207,39 @@
   }
 }
 
-/* Manage Providers Button */
-.inspector-panel__manage-providers {
+/* Settings Button */
+.inspector-panel__settings-button {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 0.5rem;
-  width: 100%;
-  margin-top: 0.75rem;
-  padding: 0.625rem 1rem;
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-default);
+  margin: var(--space-3) 0;
+  padding: 0.5rem 0.75rem;
+  background-color: transparent;
+  border: none;
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-size: var(--text-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  transition: background-color 0.15s, color 0.15s;
 }
 
-.inspector-panel__manage-providers:hover:not(:disabled) {
-  background-color: var(--hover);
+.inspector-panel__settings-button:hover:not(:disabled) {
+  background-color: var(--interactive-hover);
   color: var(--text-primary);
-  border-color: var(--border-hover);
 }
 
-.inspector-panel__manage-providers:disabled {
+.inspector-panel__settings-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.inspector-panel__manage-providers svg {
+.inspector-panel__settings-button svg {
   flex-shrink: 0;
+}
+
+.inspector-panel__settings-label {
+  font-size: var(--text-sm);
 }
 
 /* Reduced motion */

@@ -51,31 +51,24 @@
   line-height: var(--leading-normal);
 }
 
-/* Summary card */
-.model-selector__summary {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3);
-  background-color: var(--bg-accent-subtle);
-  border: 1px solid var(--border-accent);
-  border-radius: var(--radius-md);
-}
-
-.model-selector__summary-row {
+/* Info display */
+.model-selector__info {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-md);
   font-size: var(--text-xs);
-}
-
-.model-selector__summary-label {
   color: var(--text-secondary);
-  min-width: 60px;
 }
 
-.model-selector__summary-value {
-  color: var(--text-primary);
+.model-selector__info-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.model-selector__info-text {
   font-weight: var(--font-medium);
 }
 

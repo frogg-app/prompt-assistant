@@ -108,7 +108,7 @@ export default function App() {
       constraints,
       model: {
         provider: selectedProvider,
-        name: currentModel?.name || selectedModel,
+        name: currentModel?.id || selectedModel,
         version: currentModel?.version || null
       },
       uiState: {
@@ -154,7 +154,7 @@ export default function App() {
       constraints,
       model: {
         provider: selectedProvider,
-        name: currentModel?.name || selectedModel,
+        name: currentModel?.id || selectedModel,
         version: currentModel?.version || null
       }
     });
