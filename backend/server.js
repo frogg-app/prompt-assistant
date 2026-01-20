@@ -894,58 +894,59 @@ app.get("/models", async (req, res) => {
           await providersStorage.setCachedModels(providerId, models);
         }
       } else if (provider.config?.type === "openai_compatible") {
-      // For OpenAI-compatible APIs with security controls
-      const apiKey = provider.config?.api_key || 
-                    (provider.config?.env_var ? process.env[provider.config.env_var] : null);
-      const baseUrl = provider.config?.base_url;
+        // For OpenAI-compatible APIs with security controls
+        const apiKey = provider.config?.api_key || 
+                      (provider.config?.env_var ? process.env[provider.config.env_var] : null);
+        const baseUrl = provider.config?.base_url;
       
-      if (apiKey && baseUrl) {
-        try {
-          // Validate URL
-          const url = new URL(baseUrl);
-          if (!['http:', 'https:'].includes(url.protocol)) {
-            throw new Error('Invalid protocol');
-          }
-          
-          // Create abort controller for timeout
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-          
-          const response = await fetch(`${baseUrl}/models`, {
-            headers: { Authorization: `Bearer ${apiKey}` },
-            signal: controller.signal
-          });
-          
-          clearTimeout(timeoutId);
-          
-          if (response.ok) {
-            // Check response size
-            const contentLength = response.headers.get('content-length');
-            if (contentLength && parseInt(contentLength) > 5 * 1024 * 1024) {
-              throw new Error('Response too large');
+        if (apiKey && baseUrl) {
+          try {
+            // Validate URL
+            const url = new URL(baseUrl);
+            if (!['http:', 'https:'].includes(url.protocol)) {
+              throw new Error('Invalid protocol');
             }
             
-            const data = await response.json();
-            models = Array.isArray(data.data) 
-              ? data.data.map(m => ({ id: m.id, label: m.id })).slice(0, 1000) // Limit to 1000 models
-              : [];
-            isDynamic = true;
+            // Create abort controller for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            
+            const response = await fetch(`${baseUrl}/models`, {
+              headers: { Authorization: `Bearer ${apiKey}` },
+              signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+              // Check response size
+              const contentLength = response.headers.get('content-length');
+              if (contentLength && parseInt(contentLength) > 5 * 1024 * 1024) {
+                throw new Error('Response too large');
+              }
+              
+              const data = await response.json();
+              models = Array.isArray(data.data) 
+                ? data.data.map(m => ({ id: m.id, label: m.id })).slice(0, 1000) // Limit to 1000 models
+                : [];
+              isDynamic = true;
+            }
+          } catch (error) {
+            if (error.name === 'AbortError') {
+              note = "Request timeout; using configured list.";
+            } else {
+              note = "Failed to fetch models from API; using configured list.";
+            }
+            models = provider.models || [];
           }
-        } catch (error) {
-          if (error.name === 'AbortError') {
-            note = "Request timeout; using configured list.";
-          } else {
-            note = "Failed to fetch models from API; using configured list.";
-          }
+        } else {
           models = provider.models || [];
+          note = "API key not configured; using configured list.";
         }
       } else {
+        // Custom provider with static model list
         models = provider.models || [];
-        note = "API key not configured; using configured list.";
       }
-    } else {
-      // Custom provider with static model list
-      models = provider.models || [];
     }
     
     // Apply model filtering if configured
