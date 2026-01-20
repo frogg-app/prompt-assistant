@@ -10,7 +10,7 @@ import Composer from './Composer';
 describe('Composer', () => {
   it('should render textarea with placeholder', () => {
     render(<Composer />);
-    expect(screen.getByPlaceholderText(/type your rough prompt/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/enter your rough prompt/i)).toBeInTheDocument();
   });
 
   it('should render send button', () => {
@@ -35,8 +35,8 @@ describe('Composer', () => {
     expect(sendButton).toBeDisabled();
   });
 
-  it('should enable send button when value has content', () => {
-    render(<Composer value="Some text" />);
+  it('should enable send button when value has content and not submitDisabled', () => {
+    render(<Composer value="Some text" submitDisabled={false} />);
     
     const sendButton = screen.getByLabelText(/send prompt/i);
     expect(sendButton).not.toBeDisabled();
@@ -44,7 +44,7 @@ describe('Composer', () => {
 
   it('should call onSubmit when send button is clicked', async () => {
     const onSubmit = vi.fn();
-    render(<Composer value="Test prompt" onSubmit={onSubmit} />);
+    render(<Composer value="Test prompt" onSubmit={onSubmit} submitDisabled={false} />);
     
     const sendButton = screen.getByLabelText(/send prompt/i);
     await userEvent.click(sendButton);
@@ -54,7 +54,7 @@ describe('Composer', () => {
 
   it('should call onSubmit on Ctrl+Enter', async () => {
     const onSubmit = vi.fn();
-    render(<Composer value="Test prompt" onSubmit={onSubmit} />);
+    render(<Composer value="Test prompt" onSubmit={onSubmit} submitDisabled={false} />);
     
     const textarea = screen.getByLabelText(/prompt input/i);
     fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: true });
@@ -64,7 +64,7 @@ describe('Composer', () => {
 
   it('should call onSubmit on Meta+Enter (Mac)', async () => {
     const onSubmit = vi.fn();
-    render(<Composer value="Test prompt" onSubmit={onSubmit} />);
+    render(<Composer value="Test prompt" onSubmit={onSubmit} submitDisabled={false} />);
     
     const textarea = screen.getByLabelText(/prompt input/i);
     fireEvent.keyDown(textarea, { key: 'Enter', metaKey: true });
@@ -74,7 +74,7 @@ describe('Composer', () => {
 
   it('should not submit on Enter without modifier', async () => {
     const onSubmit = vi.fn();
-    render(<Composer value="Test prompt" onSubmit={onSubmit} />);
+    render(<Composer value="Test prompt" onSubmit={onSubmit} submitDisabled={false} />);
     
     const textarea = screen.getByLabelText(/prompt input/i);
     fireEvent.keyDown(textarea, { key: 'Enter' });

@@ -231,15 +231,22 @@ export default function App() {
     await refreshProviders();
   }, [refreshProviders]);
 
-  // Determine if submit is disabled
-  const isSubmitDisabled = useMemo(() => {
+  // Determine if input is disabled (prevents typing)
+  const isInputDisabled = useMemo(() => {
     return (
       isChatLoading ||
       isLoadingProviders ||
-      !providersReady ||
+      !providersReady
+    );
+  }, [isChatLoading, isLoadingProviders, providersReady]);
+
+  // Determine if submit is disabled (prevents sending)
+  const isSubmitDisabled = useMemo(() => {
+    return (
+      isInputDisabled ||
       !promptText.trim()
     );
-  }, [isChatLoading, isLoadingProviders, providersReady, promptText]);
+  }, [isInputDisabled, promptText]);
 
   return (
     <div className="app">
@@ -282,7 +289,9 @@ export default function App() {
             value={promptText}
             onChange={setPromptText}
             onSubmit={handleSubmit}
-            disabled={isSubmitDisabled}
+            disabled={isInputDisabled}
+            submitDisabled={isSubmitDisabled}
+            isLoading={isChatLoading}
             placeholder={
               !providersReady
                 ? 'Configure a provider to start...'
