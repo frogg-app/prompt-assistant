@@ -50,22 +50,44 @@ const SettingsIcon = ({ size = 20 }) => (
 );
 
 // Collapsible section component
-function Section({ title, icon, children, defaultOpen = true }) {
+function Section({ title, icon, children, defaultOpen = true, headerAction }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const sectionId = title.toLowerCase().replace(/\s+/g, '-');
   
+  // Handle click on header, but not when clicking the action button
+  const handleHeaderClick = (e) => {
+    // Don't toggle if clicking on the action button
+    if (e.target.closest('.inspector-section__action')) {
+      return;
+    }
+    setIsOpen(!isOpen);
+  };
+  
   return (
     <div className={`inspector-section ${isOpen ? 'inspector-section--open' : ''}`}>
-      <button
+      <div 
         className="inspector-section__header"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleHeaderClick}
+        role="button"
+        tabIndex={0}
         aria-expanded={isOpen}
         aria-controls={`section-${sectionId}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsOpen(!isOpen);
+          }
+        }}
       >
         {icon && <span className="inspector-section__icon">{icon}</span>}
         <span className="inspector-section__title">{title}</span>
+        {headerAction && (
+          <div className="inspector-section__action">
+            {headerAction}
+          </div>
+        )}
         <ChevronIcon direction={isOpen ? 'up' : 'down'} size={16} />
-      </button>
+      </div>
       <div 
         id={`section-${sectionId}`}
         className="inspector-section__content"
@@ -91,13 +113,19 @@ export default function InspectorPanel({
   // Prompt type
   promptType = 'none',
   onPromptTypeChange,
+  promptTypes = [],
   // Constraints
   constraints = [],
   onConstraintsChange,
+  // Grading mode
+  gradingMode = false,
+  onGradingModeChange,
   // Disabled state
   disabled = false,
   // Provider management
-  onManageProviders
+  onManageProviders,
+  // Prompt Type management
+  onManagePromptTypes
 }) {
   // Handle constraint operations
   const handleAddConstraint = useCallback((constraint) => {
@@ -158,6 +186,16 @@ export default function InspectorPanel({
                 <path d="M9 13v2" />
               </svg>
             }
+            headerAction={
+              <button
+                className="inspector-section__settings-btn"
+                onClick={onManageProviders}
+                title="Manage providers"
+                aria-label="Manage providers"
+              >
+                <SettingsIcon size={16} />
+              </button>
+            }
           >
             <ModelSelector
               providers={providers}
@@ -168,7 +206,6 @@ export default function InspectorPanel({
               onModelChange={onModelChange}
               isLoading={isLoadingModels}
               disabled={disabled}
-              onManageProviders={onManageProviders}
             />
           </Section>
 
@@ -185,11 +222,22 @@ export default function InspectorPanel({
                 <line x1="10" x2="8" y1="9" y2="9" />
               </svg>
             }
+            headerAction={
+              <button
+                className="inspector-section__settings-btn"
+                onClick={onManagePromptTypes}
+                title="Manage prompt types"
+                aria-label="Manage prompt types"
+              >
+                <SettingsIcon size={16} />
+              </button>
+            }
           >
             <PromptTypeSelector
               value={promptType}
               onChange={onPromptTypeChange}
               disabled={disabled}
+              promptTypes={promptTypes}
             />
           </Section>
 
@@ -213,6 +261,47 @@ export default function InspectorPanel({
               onRemove={handleRemoveConstraint}
               disabled={disabled}
             />
+          </Section>
+
+          {/* Grading Mode Section */}
+          <Section 
+            title="Grading Mode" 
+            icon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                <path d="M6 12v5c3 3 9 3 12 0v-5" />
+              </svg>
+            }
+            defaultOpen={false}
+          >
+            <div className="grading-section">
+              <label className="grading-section__toggle">
+                <input
+                  type="checkbox"
+                  checked={gradingMode}
+                  onChange={(e) => onGradingModeChange?.(e.target.checked)}
+                  disabled={disabled}
+                />
+                <span className="grading-section__toggle-label">Enable prompt grading</span>
+              </label>
+              <p className="grading-section__description">
+                When enabled, your prompt will be graded on clarity, context, constraints, and more. 
+                Excellent prompts (Grade A) will be confirmed rather than modified.
+              </p>
+              {gradingMode && (
+                <div className="grading-section__criteria">
+                  <p className="grading-section__criteria-title">Grading criteria:</p>
+                  <ul>
+                    <li>Clarity & Specificity</li>
+                    <li>Context Completeness</li>
+                    <li>Constraints & Success</li>
+                    <li>Input/Output Definition</li>
+                    <li>Ambiguity & Assumptions</li>
+                    <li>Testability</li>
+                  </ul>
+                </div>
+              )}
+            </div>
           </Section>
         </div>
 

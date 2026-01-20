@@ -225,22 +225,21 @@ describe('validatePayload', () => {
     expect(result.errors).toContain('model.name is required');
   });
 
-  it('should reject invalid promptType', () => {
+  it('should accept any promptType string (custom types allowed)', () => {
     const result = validatePayload({
       ...validPayload,
-      promptType: 'invalid-type'
+      promptType: 'my-custom-type'
     });
-    expect(result.valid).toBe(false);
-    expect(result.errors[0]).toContain('promptType must be one of');
+    expect(result.valid).toBe(true);
   });
 
-  it('should validate all valid prompt types', () => {
-    const validTypes = [
+  it('should accept all built-in prompt types', () => {
+    const builtInTypes = [
       'none', 'plan-architect', 'research', 'full-app-build',
       'update-refactor', 'bug-investigation-fix', 'code-review'
     ];
 
-    validTypes.forEach(type => {
+    builtInTypes.forEach(type => {
       const result = validatePayload({ ...validPayload, promptType: type });
       expect(result.valid).toBe(true);
     });

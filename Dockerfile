@@ -42,8 +42,10 @@ RUN groupadd -r app && useradd -r -g app -m -d /home/app app
 # Copy backend (including node_modules + public) with correct ownership (NO chown -R)
 COPY --from=backend-builder --chown=app:app /app/backend/ /app/
 
-# Copilot config owned by app (no recursive chown)
+# Create directories for volume mounts (will be overwritten by volume mounts at runtime)
+# These ensure the directories exist with correct permissions if volumes aren't mounted
 RUN install -d -o app -g app /home/app/.copilot \
+  && install -d -o app -g app /home/app/.config/gh \
   && printf '%s' '{"trusted_folders":["/tmp"]}' > /home/app/.copilot/config.json \
   && chown app:app /home/app/.copilot/config.json
 

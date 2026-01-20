@@ -89,8 +89,12 @@
 
 .chat-message--user .chat-message__body {
   background-color: var(--bg-accent);
-  color: var(--text-on-accent);
+  color: #ffffff;
   border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
+}
+
+.chat-message--user .chat-message__body p {
+  color: #ffffff;
 }
 
 .chat-message--assistant .chat-message__body {
@@ -106,6 +110,45 @@
 .chat-message__body--improved {
   background-color: var(--bg-accent-subtle);
   border: 1px solid var(--border-accent);
+}
+
+.chat-message__body--excellent {
+  background-color: #1a2f1a;
+  border: 2px solid #22c55e;
+  position: relative;
+}
+
+/* Excellent badge */
+.chat-message__excellent-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  margin: calc(var(--space-3) * -1) calc(var(--space-4) * -1) var(--space-3);
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
+}
+
+.chat-message__excellent-badge svg {
+  color: #fbbf24;
+}
+
+/* Excellence reason */
+.chat-message__excellence-reason {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background-color: #1a2f1a;
+  border: 1px solid #22c55e;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  color: #86efac;
+}
+
+.chat-message__excellence-reason strong {
+  color: #22c55e;
 }
 
 .chat-message__prompt {

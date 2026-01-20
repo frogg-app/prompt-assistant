@@ -6,12 +6,12 @@
 import './PromptTypeSelector.css';
 
 // Prompt type definitions with descriptions
-const PROMPT_TYPES = [
+const DEFAULT_PROMPT_TYPES = [
   {
     id: 'none',
-    name: 'None',
-    description: 'Unfiltered AI chat - direct conversation with minimal refinement',
-    icon: '○'
+    name: 'Generic',
+    description: 'General-purpose prompt refinement with sensible defaults',
+    icon: '✨'
   },
   {
     id: 'plan-architect',
@@ -54,7 +54,8 @@ const PROMPT_TYPES = [
 export default function PromptTypeSelector({
   value = 'none',
   onChange,
-  disabled = false
+  disabled = false,
+  promptTypes = DEFAULT_PROMPT_TYPES
 }) {
   const handleSelect = (typeId) => {
     if (!disabled) {
@@ -75,7 +76,7 @@ export default function PromptTypeSelector({
       role="radiogroup"
       aria-label="Prompt type selection"
     >
-      {PROMPT_TYPES.map((type) => {
+      {promptTypes.map((type) => {
         const isSelected = value === type.id;
         
         return (
@@ -109,5 +110,5 @@ export default function PromptTypeSelector({
   );
 }
 
-// Export for use elsewhere
-export { PROMPT_TYPES };
+// Export defaults for use elsewhere
+export { DEFAULT_PROMPT_TYPES };

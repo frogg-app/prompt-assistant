@@ -15,16 +15,7 @@
     },
     "promptType": {
       "type": "string",
-      "description": "The category/type of prompt being refined",
-      "enum": [
-        "none",
-        "plan-architect",
-        "research",
-        "full-app-build",
-        "update-refactor",
-        "bug-investigation-fix",
-        "code-review"
-      ],
+      "description": "The category/type of prompt being refined (built-in or custom)",
       "default": "none"
     },
     "constraints": {

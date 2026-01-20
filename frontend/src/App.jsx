@@ -14,8 +14,10 @@ import ChatWindow from './components/ChatWindow/ChatWindow';
 import Composer from './components/Composer/Composer';
 import { InspectorPanel } from './components/Inspector';
 import { ProviderManager } from './components/ProviderManager';
+import PromptTypeManager from './components/ProviderManager/PromptTypeManager';
 import { useChat } from './hooks/useChat';
 import { useProviders } from './hooks/useProviders';
+import { usePromptTypes } from './hooks/usePromptTypes';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { buildPromptPayload, validatePayload } from './utils/schema';
 import { STORAGE_KEYS, API_BASE } from './utils/constants';
@@ -34,6 +36,9 @@ export default function App() {
   // Provider manager visibility
   const [isProviderManagerOpen, setIsProviderManagerOpen] = useState(false);
   
+  // Prompt type manager visibility
+  const [isPromptTypeManagerOpen, setIsPromptTypeManagerOpen] = useState(false);
+  
   // Prompt input
   const [promptText, setPromptText] = useState('');
   
@@ -48,6 +53,9 @@ export default function App() {
     STORAGE_KEYS.CONSTRAINTS || 'constraints',
     []
   );
+  
+  // Grading mode (opt-in)
+  const [gradingMode, setGradingMode] = useState(false);
   
   // Provider and model state
   const {
@@ -65,8 +73,15 @@ export default function App() {
     setSelectedProvider,
     setSelectedModel,
     refreshProviders,
-    rescanProviders
+    rescanProviders,
+    refreshModelsForProvider
   } = useProviders();
+  
+  // Prompt types state
+  const {
+    promptTypes,
+    refreshPromptTypes
+  } = usePromptTypes();
   
   // Chat state
   const {
@@ -156,6 +171,9 @@ export default function App() {
         provider: selectedProvider,
         name: currentModel?.id || selectedModel,
         version: currentModel?.version || null
+      },
+      options: {
+        learningMode: gradingMode
       }
     });
 
@@ -175,6 +193,7 @@ export default function App() {
     promptText,
     promptType,
     constraints,
+    gradingMode,
     selectedProvider,
     selectedModel,
     currentModel,
@@ -315,12 +334,17 @@ export default function App() {
           // Prompt type
           promptType={promptType}
           onPromptTypeChange={setPromptType}
+          promptTypes={promptTypes}
           // Constraints
           constraints={constraints}
           onConstraintsChange={setConstraints}
+          // Grading mode
+          gradingMode={gradingMode}
+          onGradingModeChange={setGradingMode}
           // Disabled state
           disabled={isChatLoading}
           onManageProviders={() => setIsProviderManagerOpen(true)}
+          onManagePromptTypes={() => setIsPromptTypeManagerOpen(true)}
         />
       </div>
       
@@ -334,6 +358,15 @@ export default function App() {
         onProviderDeleted={handleProviderDeleted}
         onRescan={rescanProviders}
         isRescanning={isRescanning}
+        onModelsFiltered={refreshModelsForProvider}
+      />
+      
+      {/* Prompt Type Manager Modal */}
+      <PromptTypeManager
+        isOpen={isPromptTypeManagerOpen}
+        onClose={() => setIsPromptTypeManagerOpen(false)}
+        promptTypes={promptTypes}
+        onRefresh={refreshPromptTypes}
       />
       
       {/* Mobile inspector toggle button */}

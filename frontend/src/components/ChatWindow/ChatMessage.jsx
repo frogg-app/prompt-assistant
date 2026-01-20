@@ -47,6 +47,12 @@ const AlertIcon = ({ size = 18 }) => (
   </svg>
 );
 
+const StarIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+);
+
 function formatTime(date) {
   return new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
@@ -62,6 +68,7 @@ export default function ChatMessage({ message }) {
   const isSystem = message.role === 'system';
   const isError = message.type === 'error';
   const isImprovedPrompt = message.type === 'improved-prompt';
+  const isExcellentPrompt = message.type === 'excellent-prompt';
 
   const handleCopy = async () => {
     try {
@@ -102,13 +109,26 @@ export default function ChatMessage({ message }) {
           </time>
         </div>
         
-        <div className={`chat-message__body ${isImprovedPrompt ? 'chat-message__body--improved' : ''}`}>
-          {isImprovedPrompt ? (
+        <div className={`chat-message__body ${isImprovedPrompt ? 'chat-message__body--improved' : ''} ${isExcellentPrompt ? 'chat-message__body--excellent' : ''}`}>
+          {isExcellentPrompt && (
+            <div className="chat-message__excellent-badge">
+              <StarIcon size={16} />
+              <span>Your prompt is already excellent!</span>
+            </div>
+          )}
+          {isImprovedPrompt || isExcellentPrompt ? (
             <pre className="chat-message__prompt">{message.content}</pre>
           ) : (
             <p>{message.content}</p>
           )}
         </div>
+
+        {/* Excellence explanation */}
+        {message.metadata?.excellenceReason && (
+          <div className="chat-message__excellence-reason">
+            <strong>Why it&apos;s great:</strong> {message.metadata.excellenceReason}
+          </div>
+        )}
 
         {/* Assumptions */}
         {message.metadata?.assumptions?.length > 0 && (

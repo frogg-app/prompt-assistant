@@ -57,6 +57,18 @@ export function useChat() {
           }
         });
         setPendingClarifications(transformed.clarifications);
+      } else if (transformed.isAlreadyExcellent) {
+        // Prompt is already excellent - celebrate it!
+        addMessage({
+          role: 'assistant',
+          type: 'excellent-prompt',
+          content: transformed.improvedPrompt,
+          metadata: {
+            excellenceReason: transformed.excellenceReason,
+            learningReport: transformed.learningReport
+          }
+        });
+        setPendingClarifications(null);
       } else {
         // Add improved prompt message
         addMessage({
@@ -90,13 +102,21 @@ export function useChat() {
     
     setError(null);
     
-    // Add user response message
+    // Format answer summary with human-readable labels
+    const formatKey = (key) => {
+      // Convert snake_case to Title Case
+      return key
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    };
+    
     const answerSummary = Object.entries(answers)
       .map(([key, value]) => {
+        const label = formatKey(key);
         if (Array.isArray(value)) {
-          return `${key}: ${value.join(', ')}`;
+          return `**${label}:** ${value.join(', ')}`;
         }
-        return `${key}: ${value}`;
+        return `**${label}:** ${value}`;
       })
       .join('\n');
     
@@ -128,6 +148,18 @@ export function useChat() {
           }
         });
         setPendingClarifications(transformed.clarifications);
+      } else if (transformed.isAlreadyExcellent) {
+        // Prompt is already excellent
+        addMessage({
+          role: 'assistant',
+          type: 'excellent-prompt',
+          content: transformed.improvedPrompt,
+          metadata: {
+            excellenceReason: transformed.excellenceReason,
+            learningReport: transformed.learningReport
+          }
+        });
+        setPendingClarifications(null);
       } else {
         // Add improved prompt message
         addMessage({

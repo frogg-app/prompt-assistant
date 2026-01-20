@@ -132,6 +132,42 @@
   outline-offset: -2px;
 }
 
+.inspector-section__action {
+  display: flex;
+  margin-left: auto;
+  margin-right: var(--space-1);
+}
+
+.inspector-section__settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.inspector-section__settings-btn:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.inspector-section__settings-btn:active {
+  transform: scale(0.95);
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.inspector-section__settings-btn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
 .inspector-section__icon {
   display: flex;
   align-items: center;
@@ -145,10 +181,11 @@
 
 .inspector-section__header svg:last-child {
   color: var(--text-tertiary);
+  flex-shrink: 0;
 }
 
 .inspector-section__content {
-  padding: 0 var(--space-3) var(--space-3);
+  padding: var(--space-3);
 }
 
 .inspector-section__content[hidden] {
@@ -240,6 +277,64 @@
 
 .inspector-panel__settings-label {
   font-size: var(--text-sm);
+}
+
+/* Grading Section */
+.grading-section {
+  padding: var(--space-2) 0;
+}
+
+.grading-section__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  margin-bottom: var(--space-3);
+}
+
+.grading-section__toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--bg-accent);
+  cursor: pointer;
+}
+
+.grading-section__toggle-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+}
+
+.grading-section__description {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.grading-section__criteria {
+  padding: var(--space-3);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+}
+
+.grading-section__criteria-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+}
+
+.grading-section__criteria ul {
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.grading-section__criteria li {
+  margin-bottom: var(--space-1);
 }
 
 /* Reduced motion */

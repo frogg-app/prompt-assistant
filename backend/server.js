@@ -4,6 +4,7 @@ const fs = require("fs/promises");
 const { spawn } = require("child_process");
 const express = require("express");
 const providersStorage = require("./providers-storage");
+const promptTypesStorage = require("./prompt-types-storage");
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -58,19 +59,28 @@ const FALLBACK_MODELS = {
   ]
 };
 
-const SYSTEM_PROMPT = `You are PromptRefiner. Your job is to infer the user's objective and rewrite their rough prompt into a significantly improved, ready-to-paste prompt for the selected model/provider.
+const SYSTEM_PROMPT = `You are PromptRefiner. Your job is to rewrite the user's prompt into a significantly improved, ready-to-paste prompt.
 
 Rules:
 - ALMOST NEVER ask for clarifications. Only ask if the prompt is fundamentally ambiguous about WHAT the user wants to accomplish (not HOW).
 - NEVER ask about: output format, tone, length, constraints, model choice, examples, success criteria, or any other optional settings. These are always optional and should be inferred or omitted.
-- If the prompt type is "none", treat it as an unfiltered direct chat with AI - refine for clarity only, no structural constraints.
+- If the prompt type is "none" or "generic", apply sensible general-purpose refinement.
 - If you can make reasonable assumptions about intent, DO SO and proceed. List your assumptions.
 - If clarifications are required (RARE), return only clarification items; do not generate an improved prompt yet.
 - If clarifications are NOT required (MOST CASES), return the improved prompt directly.
 - If clarifications are provided in the input, treat them as final and produce the improved prompt.
 - Always infer and list any assumptions you made (empty array if none).
-- If learning_mode is false, learning_report MUST be null.
+- If learning_mode is false: learning_report MUST be null, and is_already_excellent MUST be false (always improve the prompt).
+- If learning_mode is true: Grade the prompt and provide a learning_report. If the prompt is already excellent (Grade A, scores 8+ in most categories), set is_already_excellent: true.
 - Output MUST be valid JSON only, no extra commentary.
+
+Grading criteria (ONLY used when learning_mode is true):
+- Clarity & Specificity (0-10): Is the goal clear? Are key terms defined?
+- Context Completeness (0-10): Does it provide necessary background?
+- Constraints & Success Criteria (0-10): Are boundaries and success defined?
+- Input/Output Definition (0-10): Are expected inputs and outputs clear?
+- Ambiguity & Assumptions (0-10): Is it free from vague language?
+- Testability (0-10): Can you verify if the output meets the goal?
 
 Clarification item schema:
 - id: stable snake_case identifier
@@ -89,20 +99,35 @@ Learning report schema (when learning_mode is true):
 - actionable_suggestions: short bullet-like strings
 
 You must return one of these JSON shapes:
-Case A (clarifications required):
+Case A (clarifications required - RARE):
 {
   "needs_clarification": true,
   "clarifications": [ ... ],
   "improved_prompt": null,
+  "is_already_excellent": false,
+  "excellence_reason": null,
   "assumptions": [],
   "learning_report": { ... } | null
 }
 
-Case B (no clarifications required):
+Case B (prompt is already excellent - ONLY when learning_mode is true):
 {
   "needs_clarification": false,
   "clarifications": [],
-  "improved_prompt": "string",
+  "improved_prompt": "original prompt here",
+  "is_already_excellent": true,
+  "excellence_reason": "Brief explanation of why this prompt is already well-crafted",
+  "assumptions": [],
+  "learning_report": { ... }
+}
+
+Case C (prompt improved):
+{
+  "needs_clarification": false,
+  "clarifications": [],
+  "improved_prompt": "improved prompt here",
+  "is_already_excellent": false,
+  "excellence_reason": null,
   "assumptions": ["string"],
   "learning_report": { ... } | null
 }
@@ -579,7 +604,9 @@ async function fetchClaudeModels() {
   }
 }
 
-async function callOpenAI({ apiKey, model, userContent }) {
+async function callOpenAI({ apiKey, model, userContent, promptTypeSystemPrompt = '' }) {
+  const systemPrompt = SYSTEM_PROMPT + promptTypeSystemPrompt;
+  
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -590,7 +617,7 @@ async function callOpenAI({ apiKey, model, userContent }) {
       model,
       temperature: 0.2,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         { role: "user", content: userContent }
       ]
     })
@@ -606,7 +633,9 @@ async function callOpenAI({ apiKey, model, userContent }) {
   return content.trim();
 }
 
-async function callGemini({ apiKey, model, userContent }) {
+async function callGemini({ apiKey, model, userContent, promptTypeSystemPrompt = '' }) {
+  const systemPrompt = SYSTEM_PROMPT + promptTypeSystemPrompt;
+  
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -617,7 +646,7 @@ async function callGemini({ apiKey, model, userContent }) {
       body: JSON.stringify({
         systemInstruction: {
           role: "system",
-          parts: [{ text: SYSTEM_PROMPT }]
+          parts: [{ text: systemPrompt }]
         },
         contents: [
           {
@@ -645,11 +674,16 @@ async function callGemini({ apiKey, model, userContent }) {
   return content.trim();
 }
 
-async function callCopilotCli({ model, userContent }) {
+async function callCopilotCli({ model, userContent, promptTypeSystemPrompt = '' }) {
   const workdir = process.env.COPILOT_WORKDIR || "/tmp";
   await ensureCopilotConfig(workdir);
+  
+  // Build the full prompt with system instructions and any prompt type guidance
+  const systemPrompt = SYSTEM_PROMPT + promptTypeSystemPrompt;
+  const fullPrompt = `${systemPrompt}\n\n${userContent}`;
+  
   // Use -s flag for streaming output and -p for prompt
-  const args = ["-s", "-p", userContent];
+  const args = ["-s", "-p", fullPrompt];
   
   // Add model flag if specified
   if (model) {
@@ -660,7 +694,9 @@ async function callCopilotCli({ model, userContent }) {
   return stdout;
 }
 
-async function callClaudeCli({ model, userContent }) {
+async function callClaudeCli({ model, userContent, promptTypeSystemPrompt = '' }) {
+  const systemPrompt = SYSTEM_PROMPT + promptTypeSystemPrompt;
+  
   const args = [
     "-p",
     userContent,
@@ -669,7 +705,7 @@ async function callClaudeCli({ model, userContent }) {
     "--json-schema",
     CLI_JSON_SCHEMA,
     "--system-prompt",
-    SYSTEM_PROMPT,
+    systemPrompt,
     "--tools",
     ""
   ];
@@ -1292,6 +1328,130 @@ app.post("/providers/rescan", async (req, res) => {
   }
 });
 
+// ============================================================================
+// PROMPT TYPES ENDPOINTS
+// ============================================================================
+
+/**
+ * GET /prompt-types
+ * Get all prompt types (built-in + custom)
+ */
+app.get("/prompt-types", async (req, res) => {
+  try {
+    const types = await promptTypesStorage.getAllPromptTypes();
+    res.json({ promptTypes: types });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch prompt types" });
+  }
+});
+
+/**
+ * GET /prompt-types/:id
+ * Get a single prompt type by ID
+ */
+app.get("/prompt-types/:id", async (req, res) => {
+  try {
+    const type = await promptTypesStorage.getPromptType(req.params.id);
+    if (!type) {
+      return res.status(404).json({ error: "Prompt type not found" });
+    }
+    res.json(type);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch prompt type" });
+  }
+});
+
+/**
+ * POST /prompt-types
+ * Add a new custom prompt type
+ */
+app.post("/prompt-types", async (req, res) => {
+  try {
+    const { id, name, description, icon, systemPrompt } = req.body;
+    
+    if (!id || !name) {
+      return res.status(400).json({ error: "ID and name are required" });
+    }
+    
+    const newType = await promptTypesStorage.addPromptType({
+      id,
+      name,
+      description: description || '',
+      icon: icon || '📝',
+      systemPrompt: systemPrompt || ''
+    });
+    
+    res.json(newType);
+  } catch (error) {
+    if (error.message.includes('already exists')) {
+      return res.status(409).json({ error: error.message });
+    }
+    res.status(500).json({ error: "Failed to add prompt type" });
+  }
+});
+
+/**
+ * PUT /prompt-types/:id
+ * Update an existing prompt type
+ */
+app.put("/prompt-types/:id", async (req, res) => {
+  try {
+    const { name, description, icon, systemPrompt } = req.body;
+    
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (description !== undefined) updates.description = description;
+    if (icon !== undefined) updates.icon = icon;
+    if (systemPrompt !== undefined) updates.systemPrompt = systemPrompt;
+    
+    const updated = await promptTypesStorage.updatePromptType(req.params.id, updates);
+    res.json(updated);
+  } catch (error) {
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ error: error.message });
+    }
+    if (error.message.includes('Cannot update')) {
+      return res.status(403).json({ error: error.message });
+    }
+    res.status(500).json({ error: "Failed to update prompt type" });
+  }
+});
+
+/**
+ * DELETE /prompt-types/:id
+ * Delete a custom prompt type
+ */
+app.delete("/prompt-types/:id", async (req, res) => {
+  try {
+    await promptTypesStorage.deletePromptType(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ error: error.message });
+    }
+    if (error.message.includes('Cannot delete')) {
+      return res.status(403).json({ error: error.message });
+    }
+    res.status(500).json({ error: "Failed to delete prompt type" });
+  }
+});
+
+/**
+ * POST /prompt-types/:id/reset
+ * Reset a built-in prompt type to its default system prompt
+ */
+app.post("/prompt-types/:id/reset", async (req, res) => {
+  try {
+    const reset = await promptTypesStorage.resetPromptType(req.params.id);
+    res.json(reset);
+  } catch (error) {
+    if (error.message.includes('not a built-in')) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: "Failed to reset prompt type" });
+  }
+});
+
 app.post("/improve", async (req, res) => {
   const {
     provider,
@@ -1299,6 +1459,7 @@ app.post("/improve", async (req, res) => {
     rough_prompt: roughPrompt,
     constraints,
     learning_mode: learningMode,
+    prompt_type: promptType,
     clarifications
   } = req.body || {};
 
@@ -1309,6 +1470,19 @@ app.post("/improve", async (req, res) => {
   }
 
   const providerId = String(provider).toLowerCase();
+
+  // Get prompt type system prompt if specified
+  let promptTypeSystemPrompt = '';
+  if (promptType && promptType !== 'none') {
+    try {
+      const type = await promptTypesStorage.getPromptType(promptType);
+      if (type && type.systemPrompt) {
+        promptTypeSystemPrompt = `\n\nPrompt Type Guidance (${type.name}):\n${type.systemPrompt}`;
+      }
+    } catch (error) {
+      console.error('Failed to load prompt type:', error);
+    }
+  }
 
   const inputPayload = {
     rough_prompt: String(roughPrompt),
@@ -1326,19 +1500,18 @@ app.post("/improve", async (req, res) => {
       if (!apiKey) {
         return res.status(400).json({ error: "OPENAI_API_KEY not set." });
       }
-      raw = await callOpenAI({ apiKey, model, userContent });
+      raw = await callOpenAI({ apiKey, model, userContent, promptTypeSystemPrompt });
     } else if (providerId === "gemini") {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
         return res.status(400).json({ error: "GEMINI_API_KEY not set." });
       }
-      raw = await callGemini({ apiKey, model, userContent });
+      raw = await callGemini({ apiKey, model, userContent, promptTypeSystemPrompt });
     } else if (providerId === "claude") {
-      raw = await callClaudeCli({ model, userContent });
+      raw = await callClaudeCli({ model, userContent, promptTypeSystemPrompt });
       return res.json(raw);
     } else if (providerId === "copilot") {
-      const prompt = `${SYSTEM_PROMPT}\n\n${userContent}`;
-      raw = await callCopilotCli({ model, userContent: prompt });
+      raw = await callCopilotCli({ model, userContent, promptTypeSystemPrompt });
     } else {
       return res.status(400).json({ error: "Unknown provider." });
     }

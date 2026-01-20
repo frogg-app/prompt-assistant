@@ -58,7 +58,7 @@ export default function ClarificationCard({ clarifications, onSubmit, isLoading 
   return (
     <div className="clarification-card">
       <div className="clarification-card__header">
-        <h3>Clarifications needed</h3>
+        <h3>Clarifying the Objective</h3>
         <p>Answer these questions to help refine your prompt better.</p>
       </div>
 

@@ -13,13 +13,23 @@
 
 .clarification-card__header {
   margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .clarification-card__header h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
-  color: var(--text-primary);
+  color: var(--bg-accent);
   margin: 0 0 var(--space-1);
+}
+
+.clarification-card__header h3::before {
+  content: "🎯";
+  font-size: var(--text-lg);
 }
 
 .clarification-card__header p {

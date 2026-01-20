@@ -16,7 +16,8 @@ export default function ProviderManager({
   onProviderUpdated,
   onProviderDeleted,
   onRescan,
-  isRescanning = false
+  isRescanning = false,
+  onModelsFiltered
 }) {
   const [view, setView] = useState('list'); // 'list', 'add', 'edit', 'filter'
   const [selectedProvider, setSelectedProvider] = useState(null);
@@ -77,6 +78,10 @@ export default function ProviderManager({
   };
 
   const handleFilterSubmit = async (filteredModels) => {
+    // Notify parent that models were filtered for this provider
+    if (selectedProvider && onModelsFiltered) {
+      onModelsFiltered(selectedProvider.id);
+    }
     setView('list');
     setSelectedProvider(null);
   };

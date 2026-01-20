@@ -122,14 +122,9 @@ function transformPayloadForBackend(payload) {
     model: model?.name,
     rough_prompt: roughPrompt,
     constraints: constraintsString,
-    learning_mode: options.learningMode ?? false
+    learning_mode: options.learningMode ?? false,
+    prompt_type: promptType || 'none'
   };
-  
-  // Add prompt type context if not 'none'
-  if (promptType && promptType !== 'none') {
-    const typeLabel = promptType.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    backendPayload.rough_prompt = `[Prompt Type: ${typeLabel}]\n\n${roughPrompt}`;
-  }
   
   // Add clarifications if provided
   if (clarifications) {
@@ -149,6 +144,8 @@ export function transformResponse(response) {
     needsClarification: Boolean(response.needs_clarification),
     clarifications: response.clarifications || [],
     improvedPrompt: response.improved_prompt || '',
+    isAlreadyExcellent: Boolean(response.is_already_excellent),
+    excellenceReason: response.excellence_reason || null,
     assumptions: response.assumptions || [],
     learningReport: response.learning_report || null
   };

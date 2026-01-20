@@ -117,14 +117,8 @@ export function validatePayload(payload) {
     }
   }
   
-  // Optional: promptType validation
-  const validPromptTypes = [
-    'none', 'plan-architect', 'research', 'full-app-build',
-    'update-refactor', 'bug-investigation-fix', 'code-review'
-  ];
-  if (payload.promptType && !validPromptTypes.includes(payload.promptType)) {
-    errors.push(`promptType must be one of: ${validPromptTypes.join(', ')}`);
-  }
+  // Optional: promptType validation - any string is allowed (supports custom types)
+  // No validation needed - promptType can be any string or omitted
   
   // Optional: constraints validation
   const validConstraintTypes = [

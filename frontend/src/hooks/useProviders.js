@@ -166,6 +166,46 @@ export function useProviders() {
     }
   }, [selectedProvider, loadProviders]);
 
+  // Refresh models for a specific provider (e.g. after filtering changes)
+  const refreshModelsForProvider = useCallback(async (providerId) => {
+    // Clear cache for this provider so next fetch gets fresh data
+    fetchedModelsRef.current.delete(providerId);
+    
+    // If this is the currently selected provider, reload models immediately
+    if (providerId === selectedProvider) {
+      setIsLoadingModels(true);
+      
+      try {
+        const { models: modelList, note, isDynamic } = await fetchModels(providerId, false);
+        fetchedModelsRef.current.add(providerId);
+        
+        const enhancedModels = modelList.map(model => {
+          const displayInfo = getModelDisplayInfo(model.id, model.label);
+          return { ...model, ...displayInfo };
+        });
+        
+        setModels(enhancedModels);
+        
+        if (note) {
+          setModelHint(note);
+        } else if (!isDynamic) {
+          setModelHint('Using fallback model list.');
+        }
+        
+        // If currently selected model is no longer available, select first
+        const storedModelAvailable = enhancedModels.some(m => m.id === selectedModel);
+        if (!storedModelAvailable && enhancedModels.length > 0) {
+          setSelectedModel(enhancedModels[0].id);
+        }
+      } catch (error) {
+        console.error('Failed to refresh models:', error);
+        setModelHint('Failed to load models.');
+      } finally {
+        setIsLoadingModels(false);
+      }
+    }
+  }, [selectedProvider, selectedModel, setSelectedModel]);
+
   // Get currently selected model object
   const currentModel = models.find(m => m.id === selectedModel) || null;
   const currentProvider = providers.find(p => p.id === selectedProvider) || null;
@@ -198,6 +238,7 @@ export function useProviders() {
     setSelectedProvider: handleProviderChange,
     setSelectedModel: handleModelChange,
     refreshProviders: loadProviders,
-    rescanProviders: handleRescan
+    rescanProviders: handleRescan,
+    refreshModelsForProvider
   };
 }
