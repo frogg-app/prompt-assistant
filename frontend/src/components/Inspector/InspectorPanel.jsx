@@ -168,22 +168,9 @@ export default function InspectorPanel({
               onModelChange={onModelChange}
               isLoading={isLoadingModels}
               disabled={disabled}
+              onManageProviders={onManageProviders}
             />
           </Section>
-
-          {/* Provider Settings */}
-          {onManageProviders && (
-            <button
-              className="inspector-panel__settings-button"
-              onClick={onManageProviders}
-              disabled={disabled}
-              aria-label="Manage providers"
-              title="Manage providers"
-            >
-              <SettingsIcon size={18} />
-              <span className="inspector-panel__settings-label">Providers</span>
-            </button>
-          )}
 
           {/* Prompt Type Section */}
           <Section 

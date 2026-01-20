@@ -10,7 +10,7 @@ const PROMPT_TYPES = [
   {
     id: 'none',
     name: 'None',
-    description: 'No specific prompt type - general purpose refinement',
+    description: 'Unfiltered AI chat - direct conversation with minimal refinement',
     icon: '○'
   },
   {

@@ -44,6 +44,14 @@ function formatModelName(model) {
   return name;
 }
 
+// Settings gear icon
+const SettingsIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
 export default function ModelSelector({
   providers = [],
   selectedProvider,
@@ -52,7 +60,8 @@ export default function ModelSelector({
   selectedModel,
   onModelChange,
   isLoading = false,
-  disabled = false
+  disabled = false,
+  onManageProviders
 }) {
   // Filter to only show available providers
   const availableProviders = providers.filter(p => p.available);
@@ -80,12 +89,25 @@ export default function ModelSelector({
     <div className="model-selector">
       {/* Provider Selection */}
       <div className="model-selector__field">
-        <label 
-          htmlFor="provider-select" 
-          className="model-selector__label"
-        >
-          Provider
-        </label>
+        <div className="model-selector__label-row">
+          <label 
+            htmlFor="provider-select" 
+            className="model-selector__label"
+          >
+            Provider
+          </label>
+          {onManageProviders && (
+            <button
+              className="model-selector__settings-btn"
+              onClick={onManageProviders}
+              disabled={disabled}
+              aria-label="Manage providers"
+              title="Manage providers"
+            >
+              <SettingsIcon size={14} />
+            </button>
+          )}
+        </div>
         <Select
           id="provider-select"
           value={selectedProvider || ''}
