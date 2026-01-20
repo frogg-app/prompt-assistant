@@ -641,8 +641,29 @@ async function callCopilotCli({ userContent }) {
   const workdir = process.env.COPILOT_WORKDIR || "/tmp";
   await ensureCopilotConfig(workdir);
   const args = ["-p", userContent];
-  const { stdout } = await runCommand("copilot", args, { cwd: workdir });
-  return stdout;
+  
+  try {
+    const { stdout, stderr } = await runCommand("copilot", args, { cwd: workdir });
+    
+    // Check if we got actual output
+    if (!stdout || stdout.trim().length === 0) {
+      throw new Error(
+        "Copilot CLI returned no output. This usually means authentication is required. " +
+        "Please run 'gh auth login' or set GITHUB_TOKEN environment variable."
+      );
+    }
+    
+    return stdout;
+  } catch (error) {
+    // Enhance error message for common issues
+    if (error.message.includes("exited with code 1")) {
+      throw new Error(
+        "Copilot CLI failed. Please ensure you are authenticated with GitHub. " +
+        "Run 'gh auth login' or set GITHUB_TOKEN environment variable."
+      );
+    }
+    throw error;
+  }
 }
 
 async function callClaudeCli({ model, userContent }) {
