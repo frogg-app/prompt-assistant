@@ -757,6 +757,7 @@ app.get("/providers", async (req, res) => {
 
 app.get("/models", async (req, res) => {
   const providerId = String(req.query.provider || "").toLowerCase();
+  const forceRefresh = req.query.refresh === "true";
   const provider = await providerById(providerId);
 
   if (!provider) {
@@ -767,32 +768,54 @@ app.get("/models", async (req, res) => {
     let models = [];
     let isDynamic = false;
     let note = "";
+    let fromCache = false;
     
-    if (providerId === "openai") {
-      const apiKey = provider.config?.api_key || process.env.OPENAI_API_KEY;
-      if (!apiKey) {
-        note = "OPENAI_API_KEY not set; no models available.";
-      } else {
-        models = await fetchOpenAIModels(apiKey);
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = providersStorage.getCachedModels(providerId);
+      if (cached && cached.models.length > 0 && !providersStorage.isCacheStale(providerId)) {
+        models = cached.models;
         isDynamic = true;
+        fromCache = true;
+        note = `Cached models (refreshed ${new Date(cached.fetchedAt).toLocaleString()}).`;
       }
-    } else if (providerId === "gemini") {
-      const apiKey = provider.config?.api_key || process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        note = "GEMINI_API_KEY not set; no models available.";
-      } else {
-        models = await fetchGeminiModels(apiKey);
+    }
+    
+    // Fetch fresh models if no cache or force refresh
+    if (!fromCache) {
+      if (providerId === "openai") {
+        const apiKey = provider.config?.api_key || process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+          note = "OPENAI_API_KEY not set; no models available.";
+        } else {
+          models = await fetchOpenAIModels(apiKey);
+          isDynamic = true;
+          await providersStorage.setCachedModels(providerId, models);
+        }
+      } else if (providerId === "gemini") {
+        const apiKey = provider.config?.api_key || process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+          note = "GEMINI_API_KEY not set; no models available.";
+        } else {
+          models = await fetchGeminiModels(apiKey);
+          isDynamic = true;
+          await providersStorage.setCachedModels(providerId, models);
+        }
+      } else if (providerId === "claude") {
+        models = await fetchClaudeModels();
         isDynamic = true;
-      }
-    } else if (providerId === "claude") {
-      models = await fetchClaudeModels();
-      isDynamic = true;
-      note = "Claude Code uses model aliases (sonnet, opus, haiku) or full model names.";
-    } else if (providerId === "copilot") {
-      models = await fetchCopilotModels();
-      isDynamic = true;
-      note = "Models fetched from Copilot CLI.";
-    } else if (provider.config?.type === "openai_compatible") {
+        note = "Claude Code uses model aliases (sonnet, opus, haiku) or full model names.";
+        if (models.length > 0) {
+          await providersStorage.setCachedModels(providerId, models);
+        }
+      } else if (providerId === "copilot") {
+        models = await fetchCopilotModels();
+        isDynamic = true;
+        note = "Models fetched from Copilot CLI.";
+        if (models.length > 0) {
+          await providersStorage.setCachedModels(providerId, models);
+        }
+      } else if (provider.config?.type === "openai_compatible") {
       // For OpenAI-compatible APIs with security controls
       const apiKey = provider.config?.api_key || 
                     (provider.config?.env_var ? process.env[provider.config.env_var] : null);
@@ -1116,6 +1139,62 @@ app.put("/providers/:id/filtered-models", async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: "Failed to set filtered models" });
+  }
+});
+
+// POST /providers/rescan - Rescan all providers to refresh model lists
+app.post("/providers/rescan", async (req, res) => {
+  try {
+    // Clear all model caches
+    await providersStorage.clearModelCache();
+    
+    const allProviders = await providersStorage.getAllProviders();
+    const results = {};
+    
+    // Fetch fresh models for each available provider
+    for (const provider of allProviders) {
+      const availability = await providerAvailability(provider);
+      if (!availability.available) {
+        results[provider.id] = { success: false, reason: availability.reason };
+        continue;
+      }
+      
+      try {
+        let models = [];
+        
+        if (provider.id === "openai") {
+          const apiKey = provider.config?.api_key || process.env.OPENAI_API_KEY;
+          if (apiKey) {
+            models = await fetchOpenAIModels(apiKey);
+          }
+        } else if (provider.id === "gemini") {
+          const apiKey = provider.config?.api_key || process.env.GEMINI_API_KEY;
+          if (apiKey) {
+            models = await fetchGeminiModels(apiKey);
+          }
+        } else if (provider.id === "claude") {
+          models = await fetchClaudeModels();
+        } else if (provider.id === "copilot") {
+          models = await fetchCopilotModels();
+        }
+        
+        if (models.length > 0) {
+          await providersStorage.setCachedModels(provider.id, models);
+          results[provider.id] = { success: true, count: models.length };
+        } else {
+          results[provider.id] = { success: false, reason: "No models found" };
+        }
+      } catch (error) {
+        results[provider.id] = { success: false, reason: error.message };
+      }
+    }
+    
+    res.json({ 
+      message: "Rescan completed",
+      results
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to rescan providers" });
   }
 });
 

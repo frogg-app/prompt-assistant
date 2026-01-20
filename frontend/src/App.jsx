@@ -59,11 +59,13 @@ export default function App() {
     currentModel,
     isLoadingProviders,
     isLoadingModels,
+    isRescanning,
     providersReady,
     providerError,
     setSelectedProvider,
     setSelectedModel,
-    refreshProviders
+    refreshProviders,
+    rescanProviders
   } = useProviders();
   
   // Chat state
@@ -321,6 +323,8 @@ export default function App() {
         onProviderAdded={handleProviderAdded}
         onProviderUpdated={handleProviderUpdated}
         onProviderDeleted={handleProviderDeleted}
+        onRescan={rescanProviders}
+        isRescanning={isRescanning}
       />
       
       {/* Mobile inspector toggle button */}

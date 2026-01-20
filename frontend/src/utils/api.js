@@ -26,14 +26,20 @@ export async function fetchProviders() {
 /**
  * Fetch available models for a specific provider
  * @param {string} providerId - The provider ID
+ * @param {boolean} forceRefresh - Whether to bypass cache
  * @returns {Promise<{models: Array, note: string, isDynamic: boolean}>}
  */
-export async function fetchModels(providerId) {
+export async function fetchModels(providerId, forceRefresh = false) {
   if (!providerId) {
     return { models: [], note: '', isDynamic: false };
   }
   
-  const response = await fetch(`${API_BASE}/models?provider=${providerId}`);
+  const params = new URLSearchParams({ provider: providerId });
+  if (forceRefresh) {
+    params.set('refresh', 'true');
+  }
+  
+  const response = await fetch(`${API_BASE}/models?${params}`);
   
   if (!response.ok) {
     throw new Error('Failed to fetch models');
@@ -46,6 +52,22 @@ export async function fetchModels(providerId) {
     note: data.note || '',
     isDynamic: data.is_dynamic !== false
   };
+}
+
+/**
+ * Rescan all providers to refresh model lists
+ * @returns {Promise<Object>} Rescan results
+ */
+export async function rescanProviders() {
+  const response = await fetch(`${API_BASE}/providers/rescan`, {
+    method: 'POST'
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to rescan providers');
+  }
+  
+  return response.json();
 }
 
 /**

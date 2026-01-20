@@ -14,7 +14,9 @@ export default function ProviderManager({
   providers = [],
   onProviderAdded,
   onProviderUpdated,
-  onProviderDeleted
+  onProviderDeleted,
+  onRescan,
+  isRescanning = false
 }) {
   const [view, setView] = useState('list'); // 'list', 'add', 'edit', 'filter'
   const [selectedProvider, setSelectedProvider] = useState(null);
@@ -121,6 +123,27 @@ export default function ProviderManager({
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
                   Add Custom Provider
+                </button>
+                <button 
+                  className="provider-manager__rescan-btn"
+                  onClick={onRescan}
+                  disabled={isRescanning}
+                  title="Rescan all providers for available models"
+                >
+                  <svg 
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                    className={isRescanning ? 'spinning' : ''}
+                  >
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                  </svg>
+                  {isRescanning ? 'Rescanning...' : 'Rescan Models'}
                 </button>
               </div>
 

@@ -4,6 +4,10 @@ const os = require("os");
 
 const STORAGE_DIR = process.env.PROVIDERS_STORAGE_DIR || path.join(os.homedir(), ".prompt-assistant");
 const STORAGE_FILE = path.join(STORAGE_DIR, "providers.json");
+const MODEL_CACHE_FILE = path.join(STORAGE_DIR, "model-cache.json");
+
+// In-memory model cache (providerId -> { models: [], fetchedAt: timestamp })
+const modelCache = new Map();
 
 // Default built-in providers
 const DEFAULT_PROVIDERS = [
@@ -215,6 +219,87 @@ async function setFilteredModels(providerId, modelIds) {
   await writeStorage(storage);
 }
 
+/**
+ * Read model cache from disk
+ */
+async function readModelCache() {
+  try {
+    await ensureStorage();
+    const data = await fs.readFile(MODEL_CACHE_FILE, "utf-8");
+    const cache = JSON.parse(data);
+    // Load into memory
+    for (const [providerId, cacheData] of Object.entries(cache)) {
+      modelCache.set(providerId, cacheData);
+    }
+    return cache;
+  } catch (error) {
+    return {};
+  }
+}
+
+/**
+ * Write model cache to disk
+ */
+async function writeModelCache() {
+  try {
+    await ensureStorage();
+    const cacheObj = Object.fromEntries(modelCache);
+    await fs.writeFile(MODEL_CACHE_FILE, JSON.stringify(cacheObj, null, 2));
+  } catch (error) {
+    console.error("Failed to write model cache:", error);
+  }
+}
+
+/**
+ * Get cached models for a provider
+ * @param {string} providerId 
+ * @returns {{ models: Array, fetchedAt: number } | null}
+ */
+function getCachedModels(providerId) {
+  return modelCache.get(providerId) || null;
+}
+
+/**
+ * Set cached models for a provider
+ * @param {string} providerId 
+ * @param {Array} models 
+ */
+async function setCachedModels(providerId, models) {
+  modelCache.set(providerId, {
+    models,
+    fetchedAt: Date.now()
+  });
+  await writeModelCache();
+}
+
+/**
+ * Clear cached models for a provider or all providers
+ * @param {string} [providerId] - If not provided, clears all caches
+ */
+async function clearModelCache(providerId) {
+  if (providerId) {
+    modelCache.delete(providerId);
+  } else {
+    modelCache.clear();
+  }
+  await writeModelCache();
+}
+
+/**
+ * Check if cache is stale (older than 24 hours by default)
+ * @param {string} providerId 
+ * @param {number} maxAgeMs - Max age in milliseconds (default: 24 hours)
+ * @returns {boolean}
+ */
+function isCacheStale(providerId, maxAgeMs = 24 * 60 * 60 * 1000) {
+  const cached = modelCache.get(providerId);
+  if (!cached) return true;
+  return Date.now() - cached.fetchedAt > maxAgeMs;
+}
+
+// Initialize cache from disk on module load
+readModelCache().catch(err => console.error("Failed to initialize model cache:", err));
+
 module.exports = {
   getAllProviders,
   getCustomProviders,
@@ -224,5 +309,9 @@ module.exports = {
   deleteProvider,
   getFilteredModels,
   setFilteredModels,
+  getCachedModels,
+  setCachedModels,
+  clearModelCache,
+  isCacheStale,
   DEFAULT_PROVIDERS
 };
