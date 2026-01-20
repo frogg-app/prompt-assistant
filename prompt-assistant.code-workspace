@@ -10,13 +10,13 @@
 			{
 				"label": "Build Image",
 				"type": "shell",
-				"command": "docker build -t prompt-assistant .",
+				"command": "docker compose build",
 				"problemMatcher": []
 			},
 			{
 				"label": "Clean Build Image",
 				"type": "shell",
-				"command": "docker build --no-cache -t prompt-assistant .",
+				"command": "docker compose build --no-cache",
 				"problemMatcher": []
 			},
 			{
@@ -34,7 +34,7 @@
 			{
 				"label": "Remove Docker Image",
 				"type": "shell",
-				"command": "docker rmi prompt-assistant",
+				"command": "docker compose down --rmi all",
 				"problemMatcher": []
 			},
 						{
