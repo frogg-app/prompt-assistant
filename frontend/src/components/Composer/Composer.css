@@ -39,9 +39,7 @@
 
 .composer__container--focused {
   border-color: var(--border-focus, var(--color-primary-500));
-  box-shadow: 
-    0 0 0 3px rgba(59, 130, 246, 0.15),
-    0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .composer__container--disabled {

@@ -32,10 +32,20 @@ const FALLBACK_MODELS = {
     { id: "gemini-1.0-pro", label: "Gemini 1.0 Pro" }
   ],
   copilot: [
-    { id: "gpt-4o", label: "GPT-4o" },
-    { id: "gpt-4", label: "GPT-4" },
-    { id: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
-    { id: "claude-3.5-sonnet", label: "Claude 3.5 Sonnet" }
+    { id: "claude-sonnet-4.5", label: "Claude Sonnet 4.5" },
+    { id: "claude-haiku-4.5", label: "Claude Haiku 4.5" },
+    { id: "claude-opus-4.5", label: "Claude Opus 4.5" },
+    { id: "claude-sonnet-4", label: "Claude Sonnet 4" },
+    { id: "gpt-5.2-codex", label: "GPT-5.2 Codex" },
+    { id: "gpt-5.1-codex-max", label: "GPT-5.1 Codex Max" },
+    { id: "gpt-5.1-codex", label: "GPT-5.1 Codex" },
+    { id: "gpt-5.2", label: "GPT-5.2" },
+    { id: "gpt-5.1", label: "GPT-5.1" },
+    { id: "gpt-5", label: "GPT-5" },
+    { id: "gpt-5.1-codex-mini", label: "GPT-5.1 Codex Mini" },
+    { id: "gpt-5-mini", label: "GPT-5 Mini" },
+    { id: "gpt-4.1", label: "GPT-4.1" },
+    { id: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" }
   ],
   claude: [
     { id: "sonnet", label: "Sonnet (Latest)", description: "Fast and intelligent" },
@@ -467,42 +477,37 @@ function parseCliModelChoices(helpOutput) {
  */
 async function fetchCopilotModels() {
   try {
-    const { stdout } = await runCommand("copilot", ["--help"], { timeoutMs: 10000 });
+    // Use an invalid model name to trigger the error message that lists all valid models
+    const { stdout, stderr } = await runCommand(
+      "copilot", 
+      ["--model", "invalid-model-to-list-choices", "-p", "test"], 
+      { timeoutMs: 10000 }
+    ).catch(err => {
+      // The command will fail, but we can parse stderr for the model list
+      return { stdout: '', stderr: err.message || '' };
+    });
     
-    // Strategy 1: Look for (choices: "model1", "model2", ...)
-    const models = parseCliModelChoices(stdout);
-    if (models && models.length > 0) {
-      console.log(`Copilot CLI: Found ${models.length} models from choices`);
-      return models;
-    }
+    // Look for the error message pattern: "Allowed choices are model1, model2, ..."
+    const errorText = stderr || stdout || '';
+    const choicesMatch = errorText.match(/Allowed choices are (.+?)\.?$/m);
     
-    // Strategy 2: Look for model names in the help text
-    const modelPatterns = [
-      /gpt-4o(?:-mini)?/gi,
-      /gpt-4(?:-turbo)?/gi,
-      /gpt-3\.5-turbo/gi,
-      /claude-[\w.-]+/gi,
-      /o1(?:-mini|-preview)?/gi
-    ];
-    
-    const found = new Set();
-    for (const pattern of modelPatterns) {
-      const matches = stdout.matchAll(pattern);
-      for (const match of matches) {
-        found.add(match[0].toLowerCase());
+    if (choicesMatch && choicesMatch[1]) {
+      const modelNames = choicesMatch[1]
+        .split(',')
+        .map(m => m.trim())
+        .filter(m => m.length > 0);
+      
+      if (modelNames.length > 0) {
+        const models = modelNames.map(id => ({
+          id,
+          label: id.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+        }));
+        console.log(`Copilot CLI: Found ${models.length} models`);
+        return models;
       }
     }
     
-    if (found.size > 0) {
-      const foundModels = Array.from(found).map(id => ({
-        id,
-        label: id.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
-      }));
-      console.log(`Copilot CLI: Found ${foundModels.length} models from patterns`);
-      return foundModels;
-    }
-    
-    // Strategy 3: Return fallback
+    // Fallback if parsing fails
     console.log("Copilot CLI: Using fallback model list");
     return FALLBACK_MODELS.copilot;
   } catch (error) {
@@ -637,33 +642,19 @@ async function callGemini({ apiKey, model, userContent }) {
   return content.trim();
 }
 
-async function callCopilotCli({ userContent }) {
+async function callCopilotCli({ model, userContent }) {
   const workdir = process.env.COPILOT_WORKDIR || "/tmp";
   await ensureCopilotConfig(workdir);
-  const args = ["-p", userContent];
+  // Use -s flag for streaming output and -p for prompt
+  const args = ["-s", "-p", userContent];
   
-  try {
-    const { stdout, stderr } = await runCommand("copilot", args, { cwd: workdir });
-    
-    // Check if we got actual output
-    if (!stdout || stdout.trim().length === 0) {
-      throw new Error(
-        "Copilot CLI returned no output. This usually means authentication is required. " +
-        "Please run 'gh auth login' or set GITHUB_TOKEN environment variable."
-      );
-    }
-    
-    return stdout;
-  } catch (error) {
-    // Enhance error message for common issues
-    if (error.message.includes("exited with code 1")) {
-      throw new Error(
-        "Copilot CLI failed. Please ensure you are authenticated with GitHub. " +
-        "Run 'gh auth login' or set GITHUB_TOKEN environment variable."
-      );
-    }
-    throw error;
+  // Add model flag if specified
+  if (model) {
+    args.unshift("--model", model);
   }
+  
+  const { stdout } = await runCommand("copilot", args, { cwd: workdir });
+  return stdout;
 }
 
 async function callClaudeCli({ model, userContent }) {
@@ -1344,7 +1335,7 @@ app.post("/improve", async (req, res) => {
       return res.json(raw);
     } else if (providerId === "copilot") {
       const prompt = `${SYSTEM_PROMPT}\n\n${userContent}`;
-      raw = await callCopilotCli({ userContent: prompt });
+      raw = await callCopilotCli({ model, userContent: prompt });
     } else {
       return res.status(400).json({ error: "Unknown provider." });
     }
