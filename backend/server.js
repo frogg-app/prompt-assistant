@@ -13,6 +13,41 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(PUBLIC_DIR));
 
+// Fallback model lists when dynamic fetching fails
+const FALLBACK_MODELS = {
+  openai: [
+    { id: "gpt-4o", label: "GPT-4o" },
+    { id: "gpt-4o-mini", label: "GPT-4o Mini" },
+    { id: "gpt-4-turbo", label: "GPT-4 Turbo" },
+    { id: "gpt-4", label: "GPT-4" },
+    { id: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
+    { id: "o1", label: "O1" },
+    { id: "o1-mini", label: "O1 Mini" },
+    { id: "o1-preview", label: "O1 Preview" }
+  ],
+  gemini: [
+    { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+    { id: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
+    { id: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
+    { id: "gemini-1.0-pro", label: "Gemini 1.0 Pro" }
+  ],
+  copilot: [
+    { id: "gpt-4o", label: "GPT-4o" },
+    { id: "gpt-4", label: "GPT-4" },
+    { id: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
+    { id: "claude-3.5-sonnet", label: "Claude 3.5 Sonnet" }
+  ],
+  claude: [
+    { id: "sonnet", label: "Sonnet (Latest)", description: "Fast and intelligent" },
+    { id: "opus", label: "Opus (Latest)", description: "Most capable model" },
+    { id: "haiku", label: "Haiku (Latest)", description: "Fastest, most compact" },
+    { id: "claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
+    { id: "claude-opus-4-20250514", label: "Claude Opus 4" },
+    { id: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet" },
+    { id: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku" }
+  ]
+};
+
 const SYSTEM_PROMPT = `You are PromptRefiner. Your job is to infer the user's objective and rewrite their rough prompt into a significantly improved, ready-to-paste prompt for the selected model/provider.
 
 Rules:
@@ -428,15 +463,51 @@ function parseCliModelChoices(helpOutput) {
 
 /**
  * Fetch available models from Copilot CLI dynamically
+ * Tries multiple strategies to get models from the CLI help output
  */
 async function fetchCopilotModels() {
   try {
     const { stdout } = await runCommand("copilot", ["--help"], { timeoutMs: 10000 });
+    
+    // Strategy 1: Look for (choices: "model1", "model2", ...)
     const models = parseCliModelChoices(stdout);
-    return models || [];
+    if (models && models.length > 0) {
+      console.log(`Copilot CLI: Found ${models.length} models from choices`);
+      return models;
+    }
+    
+    // Strategy 2: Look for model names in the help text
+    const modelPatterns = [
+      /gpt-4o(?:-mini)?/gi,
+      /gpt-4(?:-turbo)?/gi,
+      /gpt-3\.5-turbo/gi,
+      /claude-[\w.-]+/gi,
+      /o1(?:-mini|-preview)?/gi
+    ];
+    
+    const found = new Set();
+    for (const pattern of modelPatterns) {
+      const matches = stdout.matchAll(pattern);
+      for (const match of matches) {
+        found.add(match[0].toLowerCase());
+      }
+    }
+    
+    if (found.size > 0) {
+      const foundModels = Array.from(found).map(id => ({
+        id,
+        label: id.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+      }));
+      console.log(`Copilot CLI: Found ${foundModels.length} models from patterns`);
+      return foundModels;
+    }
+    
+    // Strategy 3: Return fallback
+    console.log("Copilot CLI: Using fallback model list");
+    return FALLBACK_MODELS.copilot;
   } catch (error) {
     console.error("Failed to fetch Copilot models:", error.message);
-    return [];
+    return FALLBACK_MODELS.copilot;
   }
 }
 
@@ -486,10 +557,17 @@ async function fetchClaudeModels() {
       }
     }
     
-    return models;
+    // If we found models, return them; otherwise use fallback
+    if (models.length > 0) {
+      console.log(`Claude CLI: Found ${models.length} models`);
+      return models;
+    }
+    
+    console.log("Claude CLI: Using fallback model list");
+    return FALLBACK_MODELS.claude;
   } catch (error) {
     console.error("Failed to fetch Claude models:", error.message);
-    return [];
+    return FALLBACK_MODELS.claude;
   }
 }
 
