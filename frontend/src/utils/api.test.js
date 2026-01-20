@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { fetchProviders, fetchModels, improvePrompt } from './api';
+import { fetchProviders, fetchModels, improvePrompt, rescanProviders } from './api';
 
 // Mock global fetch
 const mockFetch = vi.fn();
@@ -96,6 +96,28 @@ describe('fetchModels', () => {
     expect(result.isDynamic).toBe(true);
   });
 
+  it('should pass forceRefresh parameter when true', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ models: [], is_dynamic: true })
+    });
+
+    await fetchModels('openai', true);
+    
+    expect(mockFetch).toHaveBeenCalledWith('/models?provider=openai&refresh=true');
+  });
+
+  it('should not include refresh param when forceRefresh is false', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ models: [] })
+    });
+
+    await fetchModels('openai', false);
+    
+    expect(mockFetch).toHaveBeenCalledWith('/models?provider=openai');
+  });
+
   it('should return empty result for empty providerId', async () => {
     const result = await fetchModels('');
     
@@ -117,6 +139,63 @@ describe('fetchModels', () => {
     });
 
     await expect(fetchModels('unknown')).rejects.toThrow('Failed to fetch models');
+  });
+});
+
+describe('rescanProviders', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('should call rescan endpoint with POST method', async () => {
+    const mockResponse = {
+      message: 'Rescan completed',
+      results: {
+        openai: { success: true, count: 10 },
+        claude: { success: true, count: 3 }
+      }
+    };
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockResponse
+    });
+
+    const result = await rescanProviders();
+    
+    expect(mockFetch).toHaveBeenCalledWith('/providers/rescan', {
+      method: 'POST'
+    });
+    expect(result.message).toBe('Rescan completed');
+    expect(result.results).toBeDefined();
+  });
+
+  it('should throw error on failed rescan', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500
+    });
+
+    await expect(rescanProviders()).rejects.toThrow('Failed to rescan providers');
+  });
+
+  it('should return results for each provider', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        message: 'Rescan completed',
+        results: {
+          openai: { success: true, count: 5 },
+          copilot: { success: false, reason: 'CLI not found' }
+        }
+      })
+    });
+
+    const result = await rescanProviders();
+    
+    expect(result.results.openai.success).toBe(true);
+    expect(result.results.copilot.success).toBe(false);
+    expect(result.results.copilot.reason).toBe('CLI not found');
   });
 });
 
