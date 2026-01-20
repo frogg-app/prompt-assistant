@@ -18,11 +18,6 @@ describe('Composer', () => {
     expect(screen.getByLabelText(/send prompt/i)).toBeInTheDocument();
   });
 
-  it('should render keyboard shortcut hint', () => {
-    render(<Composer />);
-    expect(screen.getByText(/enter/i)).toBeInTheDocument();
-  });
-
   it('should call onChange when typing', async () => {
     const onChange = vi.fn();
     render(<Composer value="" onChange={onChange} />);

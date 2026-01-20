@@ -54,8 +54,11 @@ export default function ModelSelector({
   isLoading = false,
   disabled = false
 }) {
+  // Filter to only show available providers
+  const availableProviders = providers.filter(p => p.available);
+  
   // Convert providers to select options
-  const providerOptions = providers.map(p => ({
+  const providerOptions = availableProviders.map(p => ({
     value: p.id,
     label: p.name,
     icon: p.icon
@@ -89,15 +92,9 @@ export default function ModelSelector({
           onChange={(e) => onProviderChange?.(e.target.value)}
           disabled={disabled}
           placeholder="Select a provider..."
+          options={providerOptions}
           aria-describedby="provider-hint"
-        >
-          <option value="" disabled>Select a provider...</option>
-          {providerOptions.map(opt => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </Select>
+        />
         <p id="provider-hint" className="model-selector__hint">
           Choose your AI provider
         </p>
@@ -118,22 +115,11 @@ export default function ModelSelector({
             onChange={(e) => onModelChange?.(e.target.value)}
             disabled={disabled || !selectedProvider || isLoading}
             placeholder={isLoading ? 'Loading models...' : 'Select a model...'}
+            options={modelOptions}
+            loading={isLoading}
             aria-describedby="model-hint"
             aria-busy={isLoading}
-          >
-            <option value="" disabled>
-              {isLoading ? 'Loading models...' : 'Select a model...'}
-            </option>
-            {modelOptions.map(opt => (
-              <option 
-                key={opt.value} 
-                value={opt.value}
-                disabled={opt.disabled}
-              >
-                {opt.label}
-              </option>
-            ))}
-          </Select>
+          />
           {isLoading && (
             <div className="model-selector__loading" aria-hidden="true">
               <Spinner />

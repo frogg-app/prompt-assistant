@@ -3,7 +3,7 @@
  */
 
 .composer {
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4);
   background-color: var(--bg-primary);
   border-top: 1px solid var(--border-default);
   flex-shrink: 0;
@@ -11,14 +11,14 @@
 
 .composer__container {
   display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
+  align-items: center;
+  gap: var(--space-3);
   max-width: var(--chat-max-width);
   margin: 0 auto;
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
-  padding: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   transition: var(--transition-colors), var(--transition-shadow);
 }
 
@@ -31,15 +31,39 @@
   flex: 1;
   min-height: 40px;
   max-height: 200px;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) 0;
   font-family: var(--font-sans);
   font-size: var(--text-base);
-  line-height: var(--leading-normal);
+  line-height: var(--leading-relaxed);
   color: var(--text-primary);
   background: transparent;
   border: none;
   resize: none;
   overflow-y: auto;
+  overflow-x: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  /* Modern scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-default) transparent;
+}
+
+.composer__input::-webkit-scrollbar {
+  width: 6px;
+}
+
+.composer__input::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.composer__input::-webkit-scrollbar-thumb {
+  background-color: var(--border-default);
+  border-radius: 3px;
+}
+
+.composer__input::-webkit-scrollbar-thumb:hover {
+  background-color: var(--border-strong);
 }
 
 .composer__input:focus {
@@ -59,16 +83,25 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 
 .composer__send {
   width: 40px;
   height: 40px;
+  min-width: 40px;
+  min-height: 40px;
   padding: 0;
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.composer__send svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .composer__footer {
@@ -77,22 +110,8 @@
   align-items: center;
   max-width: var(--chat-max-width);
   margin: var(--space-2) auto 0;
-  padding: 0 var(--space-2);
-}
-
-.composer__hint {
-  display: none;
-}
-
-.composer__hint kbd {
-  display: inline-block;
-  padding: var(--space-0-5) var(--space-1);
-  font-family: var(--font-sans);
-  font-size: var(--text-xs);
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 1px 0 var(--border-default);
+  padding: 0 var(--space-3);
+  min-height: 20px;
 }
 
 .composer__count {
@@ -112,13 +131,6 @@
   }
   
   .composer__container {
-    padding: var(--space-2) var(--space-3);
-  }
-}
-
-/* Hide keyboard hint on touch devices */
-@media (hover: none) {
-  .composer__hint {
-    display: none;
+    padding: var(--space-2) var(--space-4);
   }
 }

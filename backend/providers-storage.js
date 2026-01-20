@@ -34,7 +34,6 @@ const DEFAULT_PROVIDERS = [
     builtin: true,
     config: {
       type: "cli",
-      env_var: "GH_TOKEN"
     }
   },
   { 

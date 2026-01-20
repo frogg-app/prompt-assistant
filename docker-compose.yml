@@ -1,8 +1,12 @@
 services:
   prompt-assistant:
     build: .
+    container_name: prompt-assistant
     ports:
       - "37400:8080"
     env_file:
       - .env
+    volumes:
+      - "$HOME/.claude:/home/app/.claude"
+      - "$HOME/.copilot:/home/app/.copilot"
     restart: unless-stopped

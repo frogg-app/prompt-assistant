@@ -13,25 +13,6 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(PUBLIC_DIR));
 
-const FALLBACK_MODELS = {
-  openai: [
-    { id: "gpt-4o-mini", label: "gpt-4o-mini" },
-    { id: "gpt-4.1-mini", label: "gpt-4.1-mini" },
-    { id: "gpt-4o", label: "gpt-4o" }
-  ],
-  gemini: [
-    { id: "gemini-1.5-pro", label: "gemini-1.5-pro" },
-    { id: "gemini-1.5-flash", label: "gemini-1.5-flash" },
-    { id: "gemini-2.0-flash-exp", label: "gemini-2.0-flash-exp" }
-  ],
-  copilot: [{ id: "copilot-default", label: "default (Copilot CLI)" }],
-  claude: [
-    { id: "sonnet", label: "sonnet (latest)" },
-    { id: "opus", label: "opus (latest)" },
-    { id: "haiku", label: "haiku (fast)" }
-  ]
-};
-
 const SYSTEM_PROMPT = `You are PromptRefiner. Your job is to infer the user's objective and rewrite their rough prompt into a significantly improved, ready-to-paste prompt for the selected model/provider.
 
 Rules:
@@ -276,7 +257,8 @@ function copilotAuthDirs() {
   const base = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
   return [
     path.join(base, "github-copilot"),
-    path.join(base, "copilot")
+    path.join(base, "copilot"),
+    path.join(os.homedir(), ".copilot")  // Copilot CLI default config dir
   ];
 }
 
@@ -413,6 +395,102 @@ async function fetchGeminiModels(apiKey) {
     .filter(Boolean);
 
   return filtered.length ? filtered : FALLBACK_MODELS.gemini;
+}
+
+/**
+ * Parse model choices from CLI help output
+ * Looks for patterns like: --model <model> ... (choices: "model1", "model2", ...)
+ */
+function parseCliModelChoices(helpOutput) {
+  // Match the --model line and capture all quoted model names
+  const modelMatch = helpOutput.match(/--model\s+<model>\s+[^(]*\(choices:\s*([^)]+)\)/is);
+  if (!modelMatch) {
+    return null;
+  }
+
+  const choicesStr = modelMatch[1];
+  const models = [];
+  const regex = /"([^"]+)"/g;
+  let match;
+  
+  while ((match = regex.exec(choicesStr)) !== null) {
+    const id = match[1];
+    // Create a readable label from the model ID
+    const label = id
+      .split('-')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+    models.push({ id, label });
+  }
+
+  return models.length > 0 ? models : null;
+}
+
+/**
+ * Fetch available models from Copilot CLI dynamically
+ */
+async function fetchCopilotModels() {
+  try {
+    const { stdout } = await runCommand("copilot", ["--help"], { timeoutMs: 10000 });
+    const models = parseCliModelChoices(stdout);
+    return models || [];
+  } catch (error) {
+    console.error("Failed to fetch Copilot models:", error.message);
+    return [];
+  }
+}
+
+/**
+ * Fetch available models from Claude CLI dynamically
+ * Note: Claude CLI uses aliases (sonnet, opus, haiku) + specific model names
+ */
+async function fetchClaudeModels() {
+  try {
+    const { stdout } = await runCommand("claude", ["--help"], { timeoutMs: 10000 });
+    
+    const models = [];
+    const seen = new Set();
+    
+    // Parse model aliases from --model help text
+    // Look for patterns like: 'sonnet', 'opus', 'haiku', or full model names
+    const aliasRegex = /['"]?(sonnet|opus|haiku)(?:\s+\d+(?:\.\d+)?)?['"]?/gi;
+    const aliasMatches = stdout.matchAll(aliasRegex);
+    
+    for (const match of aliasMatches) {
+      const alias = match[0].replace(/['"`]/g, '').trim().toLowerCase();
+      const baseAlias = alias.split(/\s+/)[0]; // Get just 'sonnet', 'opus', 'haiku'
+      if (!seen.has(baseAlias)) {
+        seen.add(baseAlias);
+        const version = alias.includes(' ') ? ` ${alias.split(/\s+/).slice(1).join(' ')}` : '';
+        models.push({ 
+          id: baseAlias, 
+          label: `${baseAlias.charAt(0).toUpperCase() + baseAlias.slice(1)}${version}` 
+        });
+      }
+    }
+    
+    // Also look for specific versioned model names like claude-sonnet-4-5-20250929
+    const versionedRegex = /claude-([a-z]+)-([\d-]+)/gi;
+    const versionedMatches = stdout.matchAll(versionedRegex);
+    
+    for (const match of versionedMatches) {
+      const fullId = match[0];
+      if (!seen.has(fullId)) {
+        seen.add(fullId);
+        const modelType = match[1]; // sonnet, opus, haiku
+        const version = match[2].replace(/-/g, '.');
+        models.push({ 
+          id: fullId, 
+          label: `Claude ${modelType.charAt(0).toUpperCase() + modelType.slice(1)} ${version}` 
+        });
+      }
+    }
+    
+    return models;
+  } catch (error) {
+    console.error("Failed to fetch Claude models:", error.message);
+    return [];
+  }
 }
 
 async function callOpenAI({ apiKey, model, userContent }) {
@@ -693,8 +771,7 @@ app.get("/models", async (req, res) => {
     if (providerId === "openai") {
       const apiKey = provider.config?.api_key || process.env.OPENAI_API_KEY;
       if (!apiKey) {
-        models = FALLBACK_MODELS.openai;
-        note = "OPENAI_API_KEY not set; using fallback list.";
+        note = "OPENAI_API_KEY not set; no models available.";
       } else {
         models = await fetchOpenAIModels(apiKey);
         isDynamic = true;
@@ -702,18 +779,19 @@ app.get("/models", async (req, res) => {
     } else if (providerId === "gemini") {
       const apiKey = provider.config?.api_key || process.env.GEMINI_API_KEY;
       if (!apiKey) {
-        models = FALLBACK_MODELS.gemini;
-        note = "GEMINI_API_KEY not set; using fallback list.";
+        note = "GEMINI_API_KEY not set; no models available.";
       } else {
         models = await fetchGeminiModels(apiKey);
         isDynamic = true;
       }
     } else if (providerId === "claude") {
-      models = FALLBACK_MODELS.claude;
-      note = "Claude Code models are CLI aliases.";
+      models = await fetchClaudeModels();
+      isDynamic = true;
+      note = "Claude Code uses model aliases (sonnet, opus, haiku) or full model names.";
     } else if (providerId === "copilot") {
-      models = FALLBACK_MODELS.copilot;
-      note = "Copilot CLI manages model selection.";
+      models = await fetchCopilotModels();
+      isDynamic = true;
+      note = "Models fetched from Copilot CLI.";
     } else if (provider.config?.type === "openai_compatible") {
       // For OpenAI-compatible APIs with security controls
       const apiKey = provider.config?.api_key || 
@@ -913,8 +991,13 @@ app.get("/providers/:id/available-models", async (req, res) => {
     
     let models = [];
     
-    // Try to fetch dynamic models for supported providers
-    if (provider.supports_dynamic_models) {
+    // Handle CLI providers (copilot and claude)
+    if (providerId === "copilot") {
+      models = await fetchCopilotModels();
+    } else if (providerId === "claude") {
+      models = await fetchClaudeModels();
+    } else if (provider.supports_dynamic_models) {
+      // Try to fetch dynamic models for API-based providers
       try {
         if (providerId === "openai") {
           const apiKey = provider.config?.api_key || process.env.OPENAI_API_KEY;

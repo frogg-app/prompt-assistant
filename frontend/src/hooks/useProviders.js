@@ -43,10 +43,14 @@ export function useProviders() {
         );
         
         if (!storedProviderAvailable) {
+          // Clear both provider and model if stored provider is not available
           const firstAvailable = providerList.find(p => p.available);
           if (firstAvailable) {
             setSelectedProvider(firstAvailable.id);
+          } else {
+            setSelectedProvider('');
           }
+          setSelectedModel(''); // Clear model when provider changes
         }
       } else {
         setProviderError(
@@ -59,7 +63,7 @@ export function useProviders() {
     } finally {
       setIsLoadingProviders(false);
     }
-  }, [selectedProvider, setSelectedProvider]);
+  }, [selectedProvider, setSelectedProvider, setSelectedModel]);
 
   // Load providers on mount
   useEffect(() => {
@@ -71,6 +75,7 @@ export function useProviders() {
     async function loadModels() {
       if (!selectedProvider || !providersReady) {
         setModels([]);
+        setSelectedModel(''); // Clear model when no provider is selected
         return;
       }
       
@@ -112,7 +117,7 @@ export function useProviders() {
     }
     
     loadModels();
-  }, [selectedProvider, providersReady]);
+  }, [selectedProvider, providersReady, setSelectedModel]);
 
   // Get currently selected model object
   const currentModel = models.find(m => m.id === selectedModel) || null;

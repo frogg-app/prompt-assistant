@@ -1,0 +1,58 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "Build Prompt Assistant",
+				"type": "shell",
+				"command": "docker build -t prompt-assistant .",
+				"problemMatcher": []
+			},
+			{
+				"label": "Run Prompt Assistant",
+				"type": "shell",
+				"command": "docker compose up -d",
+				"problemMatcher": []
+			},
+			{
+				"label": "Stop Prompt Assistant",
+				"type": "shell",
+				"command": "docker compose down",
+				"problemMatcher": []
+			},
+			{
+				"label": "Remove Prompt Assistant Image",
+				"type": "shell",
+				"command": "docker rmi prompt-assistant",
+				"problemMatcher": []
+			},
+			{
+				"label": "Rebuild and Restart Prompt Assistant",
+				"type": "shell",
+				"dependsOrder": "sequence",
+				"dependsOn": [
+					"Stop Prompt Assistant",
+					"Remove Prompt Assistant Image",
+					"Build Prompt Assistant",
+					"Run Prompt Assistant"
+				],
+				"group": {
+					"kind": "build",
+					"isDefault": true
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "Open Prompt Assistant Logs",
+				"type": "shell",
+				"command": "docker compose logs -f",
+				"problemMatcher": []
+			}
+		]
+	}
+}

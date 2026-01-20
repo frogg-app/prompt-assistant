@@ -79,7 +79,6 @@ export default function Composer({
           placeholder={placeholder}
           disabled={disabled}
           aria-label="Prompt input"
-          aria-describedby="composer-hint"
           rows={1}
         />
         
@@ -97,20 +96,16 @@ export default function Composer({
         </div>
       </div>
       
-      <div className="composer__footer">
-        <span id="composer-hint" className="composer__hint">
-          Press <kbd>⌘</kbd> + <kbd>Enter</kbd> to send
-        </span>
-        
-        {isNearLimit && (
+      {isNearLimit && (
+        <div className="composer__footer">
           <span 
             className={`composer__count ${isOverLimit ? 'composer__count--error' : ''}`}
             aria-live="polite"
           >
             {characterCount.toLocaleString()} / {maxLength.toLocaleString()}
           </span>
-        )}
-      </div>
+        </div>
+      )}
     </form>
   );
 }
