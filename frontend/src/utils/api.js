@@ -86,8 +86,23 @@ export async function improvePrompt(payload) {
   });
   
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || 'Request failed');
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.error || 'Request failed';
+    const rawResponse = errorData.raw || null;
+    
+    // Log full error details to console for debugging
+    console.error('API Error:', {
+      status: response.status,
+      statusText: response.statusText,
+      message: errorMessage,
+      raw: rawResponse
+    });
+    
+    // Create a detailed error object
+    const error = new Error(errorMessage);
+    error.status = response.status;
+    error.raw = rawResponse;
+    throw error;
   }
   
   return response.json();

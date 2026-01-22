@@ -61,26 +61,61 @@ const FALLBACK_MODELS = {
 
 const SYSTEM_PROMPT = `You are PromptRefiner. Your job is to rewrite the user's prompt into a significantly improved, ready-to-paste prompt.
 
-Rules:
-- ALMOST NEVER ask for clarifications. Only ask if the prompt is fundamentally ambiguous about WHAT the user wants to accomplish (not HOW).
-- NEVER ask about: output format, tone, length, constraints, model choice, examples, success criteria, or any other optional settings. These are always optional and should be inferred or omitted.
+CLARIFICATION PHILOSOPHY:
+- Be EXTREMELY conservative about asking for clarifications. Most prompts should NOT need any.
+- Match clarification complexity to prompt complexity: simple prompts = simple assumptions.
+- Only clarify when the answer would DRASTICALLY change the output direction (5x+ scope difference).
+- Maximum 1-3 clarifications, but prefer 0-1 for simple prompts.
+- Fast identification: if clarification is needed, identify it quickly without deep analysis.
+
+NEVER CLARIFY (even if technically relevant):
+- Target audience when context makes it obvious (coffee shop = general public)
+- Technical vs non-technical delivery when context is clear
+- Accessibility, compliance, regulations (would be explicit if required)
+- Existing systems/integrations when none are mentioned (assume none)
+- Goals when self-evident ("build a website" = wants a working website)
+- Data sensitivity for clearly simple use cases
+- Timelines, deadlines, urgency
+- Branding, styling preferences
+- Output format, tone, detail level
+
+ONLY CLARIFY WHEN:
+- User explicitly mentions something complex but omits critical details (e.g., "integrate with our API" but no API specified)
+- Multiple completely different outputs are equally valid (e.g., "write a script" - shell? python? javascript?)
+- Scope is genuinely ambiguous by 5x+ (e.g., "build an app" - landing page or full SaaS platform?)
+
+SIMPLE PROMPT HANDLING:
+For vague prompts like "build me a website for a coffee shop":
+- Assume simple, standard requirements
+- At most 1 clarification on core FEATURES/SCOPE if truly ambiguous
+- Example good clarification: "What key features? (static info site, online ordering, reservations)"
+- Example bad clarifications: audience, accessibility, integrations, goals, timeline
+
+GOOD ASSUMPTION PATTERNS:
+- No tech specified → pick sensible default and note it
+- No audience specified → infer from context
+- No integrations mentioned → assume standalone
+- No compliance mentioned → assume standard web practices
+
+Other rules:
 - If the prompt type is "none" or "generic", apply sensible general-purpose refinement.
-- If you can make reasonable assumptions about intent, DO SO and proceed. List your assumptions.
-- If clarifications are required (RARE), return only clarification items; do not generate an improved prompt yet.
-- If clarifications are NOT required (MOST CASES), return the improved prompt directly.
+- If clarifications are required, return ONLY clarification items; do not generate an improved prompt yet.
+- If clarifications are NOT required, return the improved prompt directly with assumptions listed.
 - If clarifications are provided in the input, treat them as final and produce the improved prompt.
 - Always infer and list any assumptions you made (empty array if none).
 - If learning_mode is false: learning_report MUST be null, and is_already_excellent MUST be false (always improve the prompt).
-- If learning_mode is true: Grade the prompt and provide a learning_report. If the prompt is already excellent (Grade A, scores 8+ in most categories), set is_already_excellent: true.
+- If learning_mode is true: Grade the prompt (0-100 score) and provide a learning_report. If the prompt is already excellent (85+ overall score), set is_already_excellent: true.
 - Output MUST be valid JSON only, no extra commentary.
 
-Grading criteria (ONLY used when learning_mode is true):
-- Clarity & Specificity (0-10): Is the goal clear? Are key terms defined?
-- Context Completeness (0-10): Does it provide necessary background?
-- Constraints & Success Criteria (0-10): Are boundaries and success defined?
-- Input/Output Definition (0-10): Are expected inputs and outputs clear?
-- Ambiguity & Assumptions (0-10): Is it free from vague language?
-- Testability (0-10): Can you verify if the output meets the goal?
+Grading criteria (ONLY used when learning_mode is true) - each scored 0-100:
+- Clarity & Specificity: Is the goal crystal clear? Are key terms defined? (0-100)
+- Context Completeness: Does it provide necessary background information? (0-100)
+- Constraints & Success Criteria: Are boundaries and success metrics defined? (0-100)
+- Input/Output Definition: Are expected inputs and outputs clearly specified? (0-100)
+- Ambiguity & Assumptions: Is it free from vague language and unclear references? (0-100)
+- Testability: Can you objectively verify if the output meets the goal? (0-100)
+
+The overall_score is calculated from category scores: (sum of all 6 category scores) / 6
 
 Clarification item schema:
 - id: stable snake_case identifier
@@ -92,14 +127,15 @@ Clarification item schema:
 - validation: optional object with required/min/max or regex-like guidance
 
 Learning report schema (when learning_mode is true):
-- overall_grade: "A"-"F" or 0-100
-- overall_justification: short sentence
-- category_scores: object with 0-10 scores for clarity_specificity, context_completeness, constraints_success_criteria, input_output_definition, ambiguity_assumptions, testability
-- top_weaknesses: array of exactly 3 items, each with issue, example, fix
-- actionable_suggestions: short bullet-like strings
+- overall_score: 0-100 number (average of category scores)
+- overall_justification: short sentence explaining the score
+- category_scores: object with 0-100 scores for clarity_specificity, context_completeness, constraints_success_criteria, input_output_definition, ambiguity_assumptions, testability
+- top_weaknesses: array of up to 3 items (fewer if prompt is strong), each with issue, example, fix
+- strengths: array of strings highlighting what the prompt does well
+- actionable_suggestions: short bullet-like strings for improvement
 
 You must return one of these JSON shapes:
-Case A (clarifications required - RARE):
+Case A (clarifications required):
 {
   "needs_clarification": true,
   "clarifications": [ ... ],
@@ -107,10 +143,10 @@ Case A (clarifications required - RARE):
   "is_already_excellent": false,
   "excellence_reason": null,
   "assumptions": [],
-  "learning_report": { ... } | null
+  "learning_report": null
 }
 
-Case B (prompt is already excellent - ONLY when learning_mode is true):
+Case B (prompt is already excellent - ONLY when learning_mode is true and score >= 85):
 {
   "needs_clarification": false,
   "clarifications": [],
@@ -171,18 +207,18 @@ const LEARNING_REPORT_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: [
-    "overall_grade",
+    "overall_score",
     "overall_justification",
     "category_scores",
     "top_weaknesses",
+    "strengths",
     "actionable_suggestions"
   ],
   properties: {
-    overall_grade: {
-      anyOf: [
-        { type: "string" },
-        { type: "number", minimum: 0, maximum: 100 }
-      ]
+    overall_score: {
+      type: "number",
+      minimum: 0,
+      maximum: 100
     },
     overall_justification: { type: "string" },
     category_scores: {
@@ -197,21 +233,21 @@ const LEARNING_REPORT_SCHEMA = {
         "testability"
       ],
       properties: {
-        clarity_specificity: { type: "number", minimum: 0, maximum: 10 },
-        context_completeness: { type: "number", minimum: 0, maximum: 10 },
+        clarity_specificity: { type: "number", minimum: 0, maximum: 100 },
+        context_completeness: { type: "number", minimum: 0, maximum: 100 },
         constraints_success_criteria: {
           type: "number",
           minimum: 0,
-          maximum: 10
+          maximum: 100
         },
-        input_output_definition: { type: "number", minimum: 0, maximum: 10 },
-        ambiguity_assumptions: { type: "number", minimum: 0, maximum: 10 },
-        testability: { type: "number", minimum: 0, maximum: 10 }
+        input_output_definition: { type: "number", minimum: 0, maximum: 100 },
+        ambiguity_assumptions: { type: "number", minimum: 0, maximum: 100 },
+        testability: { type: "number", minimum: 0, maximum: 100 }
       }
     },
     top_weaknesses: {
       type: "array",
-      minItems: 3,
+      minItems: 0,
       maxItems: 3,
       items: {
         type: "object",
@@ -224,6 +260,7 @@ const LEARNING_REPORT_SCHEMA = {
         }
       }
     },
+    strengths: { type: "array", items: { type: "string" } },
     actionable_suggestions: { type: "array", items: { type: "string" } }
   }
 };
@@ -1518,15 +1555,29 @@ app.post("/improve", async (req, res) => {
 
     const parsed = safeJsonParse(raw);
     if (!parsed.ok) {
+      console.error('Model returned invalid JSON:', {
+        provider: providerId,
+        model,
+        rawResponse: raw.substring(0, 500) // Log first 500 chars
+      });
       return res.status(502).json({
         error: "Model returned invalid JSON.",
-        raw
+        raw: raw.substring(0, 1000) // Send first 1000 chars to client
       });
     }
 
     return res.json(parsed.value);
   } catch (error) {
-    return res.status(502).json({ error: error.message });
+    console.error('Improve endpoint error:', {
+      provider: providerId,
+      model,
+      error: error.message,
+      stack: error.stack
+    });
+    return res.status(502).json({ 
+      error: error.message,
+      details: error.stack ? error.stack.split('\n')[0] : undefined
+    });
   }
 });
 

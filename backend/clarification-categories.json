@@ -1,0 +1,58 @@
+{
+  "description": "Minimal clarification guidelines. Only ask when absolutely critical. Match complexity to prompt complexity.",
+  
+  "core_principle": "Simple prompts deserve simple assumptions. Only clarify when the answer would DRASTICALLY change the output direction, not just the details.",
+  
+  "max_clarifications": 3,
+  
+  "only_clarify_when": [
+    "The prompt explicitly mentions something complex but omits critical details (e.g., 'integrate with our API' but no API specified)",
+    "Multiple completely different outputs are equally valid (e.g., 'write a script' - shell? python? javascript?)",
+    "The scope is genuinely ambiguous by 5x+ (e.g., 'build an app' - landing page or full platform?)"
+  ],
+  
+  "never_clarify": [
+    "Obvious context (coffee shop website = general public audience)",
+    "Things that would be explicit if required (accessibility, compliance, regulations)",
+    "Technical vs non-technical when context makes it obvious",
+    "Existing systems/integrations when none are mentioned",
+    "Goals when the goal is self-evident from the prompt",
+    "Data sensitivity for clearly simple/public use cases",
+    "Timelines, deadlines, or urgency",
+    "Branding, colors, or styling preferences",
+    "Output format, tone, or writing style",
+    "Level of detail or verbosity"
+  ],
+  
+  "prompt_complexity_matching": {
+    "simple_prompt": {
+      "definition": "One sentence, generic request, no technical specifics",
+      "approach": "Assume simple requirements. At most 1 clarification on core scope if truly ambiguous.",
+      "examples": ["build me a website for a coffee shop", "write a todo app", "help me with my resume"]
+    },
+    "moderate_prompt": {
+      "definition": "Some specifics provided but key details missing",
+      "approach": "1-2 targeted clarifications on the gaps that matter most.",
+      "examples": ["build a React dashboard that shows sales data", "create an API for user authentication"]
+    },
+    "detailed_prompt": {
+      "definition": "Multiple requirements listed, shows user has thought it through",
+      "approach": "Only clarify genuine contradictions or missing critical pieces. Usually 0-1 clarifications.",
+      "examples": ["complex multi-paragraph prompt with specific requirements but missing one key integration detail"]
+    }
+  },
+  
+  "good_clarification_examples": [
+    "User says 'build an e-commerce site' - clarify if they need payment processing or just a product catalog",
+    "User says 'create a mobile app' - clarify iOS, Android, or cross-platform",
+    "User says 'integrate with our database' - clarify which database since they explicitly mentioned one exists"
+  ],
+  
+  "bad_clarification_examples": [
+    "Coffee shop website - asking about target audience (obviously general public)",
+    "Simple website - asking about accessibility requirements (would be explicit if required)",
+    "Generic prompt - asking about success metrics (just wants a working result)",
+    "No integrations mentioned - asking about existing systems (assume none)"
+  ],
+  "ask_threshold": "Only ask when the ambiguity would cause a 50%+ difference in the output usefulness. When in doubt, make an assumption and note it."
+}

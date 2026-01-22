@@ -82,13 +82,25 @@ export function useChat() {
         });
         setPendingClarifications(null);
       }
+      return { success: true };
     } catch (err) {
       setError(err.message);
+      
+      // Build a detailed error message
+      let errorContent = `Error: ${err.message}`;
+      if (err.status) {
+        errorContent = `Error (${err.status}): ${err.message}`;
+      }
+      if (err.raw) {
+        errorContent += `\n\nServer response:\n${err.raw}`;
+      }
+      
       addMessage({
         role: 'system',
         type: 'error',
-        content: `Error: ${err.message}`
+        content: errorContent
       });
+      return { success: false, error: err.message };
     } finally {
       setIsLoading(false);
     }

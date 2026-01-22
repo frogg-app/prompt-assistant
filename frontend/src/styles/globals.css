@@ -535,10 +535,71 @@ input[type="radio"] {
   }
 }
 
+/* Toast notifications */
+.app__toast {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-toast);
+  animation: toast-slide-in-right 0.3s ease-out;
+}
+
+.app__toast--error {
+  background-color: var(--color-error-500);
+  color: white;
+}
+
+.app__toast--success {
+  background-color: var(--color-success-500);
+  color: white;
+}
+
+.app__toast--warning {
+  background-color: var(--color-warning-500);
+  color: white;
+}
+
+.app__toast-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: var(--text-xl);
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.app__toast-close:hover {
+  opacity: 1;
+}
+
+@keyframes toast-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .app__mobile-toggle {
     transition: none;
+  }
+  
+  .app__toast {
+    animation: none;
   }
   
   .animate-fade-in,

@@ -61,6 +61,25 @@ function formatTime(date) {
   }).format(date);
 }
 
+function getScoreClass(score) {
+  if (score >= 85) return 'excellent';
+  if (score >= 70) return 'good';
+  if (score >= 50) return 'fair';
+  return 'poor';
+}
+
+function formatCategoryName(key) {
+  const names = {
+    clarity_specificity: 'Clarity & Specificity',
+    context_completeness: 'Context',
+    constraints_success_criteria: 'Constraints',
+    input_output_definition: 'Input/Output',
+    ambiguity_assumptions: 'Clarity',
+    testability: 'Testability'
+  };
+  return names[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export default function ChatMessage({ message }) {
   const [copied, setCopied] = useState(false);
 
@@ -85,7 +104,7 @@ export default function ChatMessage({ message }) {
     return (
       <div className={`chat-message chat-message--system ${isError ? 'chat-message--error' : ''}`}>
         {isError && <AlertIcon size={16} />}
-        <span>{message.content}</span>
+        <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit' }}>{message.content}</pre>
       </div>
     );
   }
@@ -147,13 +166,46 @@ export default function ChatMessage({ message }) {
           <div className="chat-message__report">
             <div className="chat-message__report-header">
               <strong>Learning Report</strong>
-              <span className="chat-message__grade">
-                Grade: {message.metadata.learningReport.overall_grade}
+              <span className={`chat-message__score chat-message__score--${getScoreClass(message.metadata.learningReport.overall_score)}`}>
+                {message.metadata.learningReport.overall_score}/100
               </span>
             </div>
             <p className="chat-message__justification">
               {message.metadata.learningReport.overall_justification}
             </p>
+            
+            {/* Score breakdown */}
+            {message.metadata.learningReport.category_scores && (
+              <div className="chat-message__score-breakdown">
+                <strong>Score Breakdown:</strong>
+                <div className="chat-message__scores-grid">
+                  {Object.entries(message.metadata.learningReport.category_scores).map(([key, value]) => (
+                    <div key={key} className="chat-message__score-item">
+                      <span className="chat-message__score-label">{formatCategoryName(key)}</span>
+                      <div className="chat-message__score-bar">
+                        <div 
+                          className={`chat-message__score-fill chat-message__score-fill--${getScoreClass(value)}`}
+                          style={{ width: `${value}%` }}
+                        />
+                      </div>
+                      <span className="chat-message__score-value">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Strengths */}
+            {message.metadata.learningReport.strengths?.length > 0 && (
+              <div className="chat-message__strengths">
+                <strong>Strengths:</strong>
+                <ul>
+                  {message.metadata.learningReport.strengths.map((strength, i) => (
+                    <li key={i}>{strength}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             
             {message.metadata.learningReport.top_weaknesses?.length > 0 && (
               <div className="chat-message__weaknesses">

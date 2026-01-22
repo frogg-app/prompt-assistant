@@ -158,8 +158,11 @@ export default function App() {
     URL.revokeObjectURL(url);
   }, [currentPayload]);
 
+  // Toast state for temporary notifications
+  const [toast, setToast] = useState(null);
+
   // Handle form submission
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (!promptText.trim()) return;
     if (!providersReady) return;
 
@@ -184,11 +187,17 @@ export default function App() {
       return;
     }
 
-    // Send to chat
-    sendPrompt(payload);
+    // Send to chat and check result
+    const result = await sendPrompt(payload);
     
-    // Clear input
-    setPromptText('');
+    // Only clear input on success
+    if (result?.success) {
+      setPromptText('');
+    } else {
+      // Show toast on failure
+      setToast({ type: 'error', message: 'Request failed' });
+      setTimeout(() => setToast(null), 4000);
+    }
   }, [
     promptText,
     promptType,
@@ -289,13 +298,6 @@ export default function App() {
             </div>
           )}
           
-          {/* Chat error notice */}
-          {chatError && (
-            <div className="app__notice app__notice--error" role="alert">
-              <p>{chatError}</p>
-            </div>
-          )}
-          
           {/* Chat window */}
           <ChatWindow
             messages={messages}
@@ -381,6 +383,20 @@ export default function App() {
           <circle cx="12" cy="12" r="3" />
         </svg>
       </button>
+      
+      {/* Toast notification */}
+      {toast && (
+        <div className={`app__toast app__toast--${toast.type}`} role="alert">
+          <span>{toast.message}</span>
+          <button 
+            className="app__toast-close" 
+            onClick={() => setToast(null)}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }

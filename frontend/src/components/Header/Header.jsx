@@ -37,27 +37,9 @@ const MoonIcon = ({ size = 18 }) => (
   </svg>
 );
 
-const DownloadIcon = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="7 10 12 15 17 10" />
-    <line x1="12" x2="12" y1="15" y2="3" />
-  </svg>
-);
-
-const PanelRightIcon = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect width="18" height="18" x="3" y="3" rx="2" />
-    <path d="M15 3v18" />
-  </svg>
-);
-
 export default function Header({
   theme = 'system',
-  onThemeChange,
-  onExportJSON,
-  onToggleInspector,
-  inspectorVisible = true
+  onThemeChange
 }) {
   const toggleTheme = () => {
     const nextTheme = theme === 'light' ? 'dark' : 'light';
@@ -75,34 +57,11 @@ export default function Header({
         <Button
           variant="ghost"
           size="sm"
-          onClick={onExportJSON}
-          aria-label="Export configuration as JSON"
-          title="Export JSON"
-        >
-          <DownloadIcon />
-          <span className="header__action-text">Export</span>
-        </Button>
-        
-        <Button
-          variant="ghost"
-          size="sm"
           onClick={toggleTheme}
           aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
           title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
         >
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-        </Button>
-        
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggleInspector}
-          aria-label={inspectorVisible ? 'Hide options panel' : 'Show options panel'}
-          aria-pressed={inspectorVisible}
-          title={inspectorVisible ? 'Hide options' : 'Show options'}
-          className="header__inspector-toggle"
-        >
-          <PanelRightIcon />
         </Button>
       </nav>
     </header>
