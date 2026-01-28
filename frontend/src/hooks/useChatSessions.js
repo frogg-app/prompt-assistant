@@ -43,16 +43,16 @@ export function useChatSessions(userId = null) {
         parsed.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
         setSessions(parsed);
         
-        // Set current session to the most recent one if exists
-        if (parsed.length > 0 && !currentSessionId) {
-          setCurrentSessionId(parsed[0].id);
+        // Set current session to the most recent one if exists and no session selected
+        if (parsed.length > 0) {
+          setCurrentSessionId(prev => prev || parsed[0].id);
         }
       }
     } catch (e) {
       console.error('Failed to load chat sessions:', e);
     }
     setIsLoading(false);
-  }, [storageKey, currentSessionId]);
+  }, [storageKey]); // Removed currentSessionId to prevent infinite loop
 
   // Save sessions to storage when they change
   useEffect(() => {
@@ -140,20 +140,20 @@ export function useChatSessions(userId = null) {
    * Delete a session
    */
   const deleteSession = useCallback((sessionId) => {
-    setSessions(prev => prev.filter(s => s.id !== sessionId));
-    
-    // If deleting current session, switch to most recent or create new
-    if (sessionId === currentSessionId) {
-      setSessions(prev => {
-        const remaining = prev.filter(s => s.id !== sessionId);
+    setSessions(prev => {
+      const remaining = prev.filter(s => s.id !== sessionId);
+      
+      // If deleting current session, switch to most recent or null
+      if (sessionId === currentSessionId) {
         if (remaining.length > 0) {
           setCurrentSessionId(remaining[0].id);
         } else {
           setCurrentSessionId(null);
         }
-        return remaining;
-      });
-    }
+      }
+      
+      return remaining;
+    });
   }, [currentSessionId]);
 
   /**

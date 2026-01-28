@@ -159,6 +159,8 @@ export default function SetupWizard({
           <button 
             className="setup-wizard__advanced-toggle"
             onClick={() => setShowAdvanced(!showAdvanced)}
+            aria-expanded={showAdvanced}
+            type="button"
           >
             <span>Advanced Options</span>
             <ChevronDownIcon />

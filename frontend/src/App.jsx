@@ -35,7 +35,7 @@ import './styles/globals.css';
  */
 export default function App() {
   // Auth state
-  const { user, isAuthenticated } = useAuth();
+  const { user, signOut } = useAuth();
   
   // Theme state
   const [theme, setTheme] = useLocalStorage(STORAGE_KEYS.THEME, 'system');
@@ -341,7 +341,7 @@ export default function App() {
           onDeleteSession={handleDeleteSession}
           user={user}
           onSignIn={() => setIsAuthModalOpen(true)}
-          onSignOut={() => {}}
+          onSignOut={signOut}
           onOpenSettings={() => setIsProviderManagerOpen(true)}
         />
         
