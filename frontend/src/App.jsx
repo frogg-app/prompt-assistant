@@ -55,7 +55,7 @@ export default function App() {
   );
   
   // Learning mode (opt-in) - provides detailed feedback and scores
-  const [gradingMode, setGradingMode] = useState(false);
+  const [learningMode, setLearningMode] = useState(false);
   
   // Provider and model state
   const {
@@ -176,7 +176,7 @@ export default function App() {
         version: currentModel?.version || null
       },
       options: {
-        learningMode: gradingMode
+        learningMode: learningMode
       }
     });
 
@@ -202,7 +202,7 @@ export default function App() {
     promptText,
     promptType,
     constraints,
-    gradingMode,
+    learningMode,
     selectedProvider,
     selectedModel,
     currentModel,
@@ -297,8 +297,8 @@ export default function App() {
           constraints={constraints}
           onConstraintsChange={setConstraints}
           // Learning mode
-          gradingMode={gradingMode}
-          onGradingModeChange={setGradingMode}
+          learningMode={learningMode}
+          onLearningModeChange={setLearningMode}
           // Disabled state
           disabled={isChatLoading}
           onManageProviders={() => setIsProviderManagerOpen(true)}

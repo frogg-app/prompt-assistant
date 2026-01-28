@@ -63,8 +63,9 @@ Scoring criteria (ONLY used when learning_mode is true) - each scored 0-10:
 - Ambiguity & Assumptions: Is it free from vague language and unclear references? (0-10)
 - Testability: Can you objectively verify if the output meets the goal? (0-10)
 
+Category scores should be whole numbers (integers 0-10).
 The overall_score is calculated from category scores: (sum of all 6 category scores) / 6, rounded to 1 decimal place.
-The total_score is the sum of all 6 category scores (max 60).
+The total_score is the sum of all 6 category scores (whole number, max 60).
 
 Clarification item schema:
 - id: stable snake_case identifier
@@ -77,9 +78,9 @@ Clarification item schema:
 
 Learning report schema (when learning_mode is true):
 - overall_score: 0-10 number (average of category scores, 1 decimal place)
-- total_score: 0-60 number (sum of all category scores)
+- total_score: 0-60 whole number (sum of all category scores)
 - overall_justification: short sentence explaining the score
-- category_scores: object with 0-10 scores for clarity_specificity, context_completeness, constraints_success_criteria, input_output_definition, ambiguity_assumptions, testability
+- category_scores: object with integer 0-10 scores for clarity_specificity, context_completeness, constraints_success_criteria, input_output_definition, ambiguity_assumptions, testability
 - top_weaknesses: array of up to 3 items (fewer if prompt is strong), each with issue, example, fix
 - strengths: array of strings highlighting what the prompt does well
 - actionable_suggestions: short bullet-like strings for improvement

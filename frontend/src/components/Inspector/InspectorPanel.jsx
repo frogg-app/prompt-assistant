@@ -118,8 +118,8 @@ export default function InspectorPanel({
   constraints = [],
   onConstraintsChange,
   // Learning mode
-  gradingMode = false,
-  onGradingModeChange,
+  learningMode = false,
+  onLearningModeChange,
   // Disabled state
   disabled = false,
   // Provider management
@@ -278,8 +278,8 @@ export default function InspectorPanel({
               <label className="learning-section__toggle">
                 <input
                   type="checkbox"
-                  checked={gradingMode}
-                  onChange={(e) => onGradingModeChange?.(e.target.checked)}
+                  checked={learningMode}
+                  onChange={(e) => onLearningModeChange?.(e.target.checked)}
                   disabled={disabled}
                 />
                 <span className="learning-section__toggle-label">Enable learning mode</span>
@@ -288,7 +288,7 @@ export default function InspectorPanel({
                 Get detailed feedback on your prompt with scores out of 10 for each category, 
                 plus a total score. Excellent prompts (8.5+/10) will be confirmed rather than modified.
               </p>
-              {gradingMode && (
+              {learningMode && (
                 <div className="learning-section__criteria">
                   <p className="learning-section__criteria-title">Scoring criteria (each scored 0-10):</p>
                   <ul>
