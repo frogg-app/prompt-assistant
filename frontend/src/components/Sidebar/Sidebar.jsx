@@ -82,18 +82,51 @@ export default function Sidebar({
   user,
   onSignIn,
   onSignOut,
-  onOpenSettings
+  onOpenSettings,
+  isOpen = false,
+  onClose
 }) {
   const [hoveredSession, setHoveredSession] = useState(null);
 
+  // Handle backdrop click
+  const handleBackdropClick = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
+
+  // Handle session selection and close on mobile
+  const handleSelectSession = (sessionId) => {
+    onSelectSession(sessionId);
+    if (onClose && window.innerWidth <= 768) {
+      onClose();
+    }
+  };
+
+  // Handle new chat and close on mobile
+  const handleNewChat = () => {
+    onNewChat();
+    if (onClose && window.innerWidth <= 768) {
+      onClose();
+    }
+  };
+
   return (
-    <aside className="sidebar">
+    <>
+      {/* Mobile backdrop */}
+      <div 
+        className={`sidebar-backdrop ${isOpen ? 'sidebar-backdrop--visible' : ''}`}
+        onClick={handleBackdropClick}
+        aria-hidden="true"
+      />
+      
+      <aside className={`sidebar ${isOpen ? 'sidebar--open' : ''}`}>
       {/* Header with New Chat button */}
       <div className="sidebar__header">
         <Button
           variant="primary"
           className="sidebar__new-chat"
-          onClick={onNewChat}
+          onClick={handleNewChat}
         >
           <PlusIcon />
           <span>New Chat</span>
@@ -118,7 +151,7 @@ export default function Sidebar({
                 >
                   <button
                     className="sidebar__item-button"
-                    onClick={() => onSelectSession(session.id)}
+                    onClick={() => handleSelectSession(session.id)}
                   >
                     <ChatIcon />
                     <div className="sidebar__item-content">
@@ -190,6 +223,7 @@ export default function Sidebar({
           </Button>
         )}
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

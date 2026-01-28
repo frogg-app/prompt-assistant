@@ -464,6 +464,18 @@ input[type="radio"] {
   overflow: hidden;
 }
 
+/* Mobile layout adjustments */
+@media (max-width: 768px) {
+  .app__layout {
+    /* On mobile, sidebar is an overlay, so main takes full width */
+    display: block;
+  }
+  
+  .app__main {
+    width: 100%;
+  }
+}
+
 /* When inspector is open on large screens, adjust main area */
 @media (min-width: 1200px) {
   .app__main {
@@ -497,10 +509,10 @@ input[type="radio"] {
 /* Mobile toggle button for inspector */
 .app__mobile-toggle {
   position: fixed;
-  bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--space-20) + env(safe-area-inset-bottom, 0px));
   right: var(--space-4);
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -508,15 +520,18 @@ input[type="radio"] {
   color: var(--text-on-accent);
   border: none;
   border-radius: var(--radius-full);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-xl);
   cursor: pointer;
   z-index: var(--z-sticky);
   transition: var(--transition-transform), var(--transition-shadow);
+  /* Ensure minimum touch target size */
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .app__mobile-toggle:hover {
   transform: scale(1.05);
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-2xl);
 }
 
 .app__mobile-toggle:active {
