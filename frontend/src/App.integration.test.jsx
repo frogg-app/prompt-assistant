@@ -1,6 +1,7 @@
 /**
  * App Integration Tests
  * Tests the main application flows and component interactions
+ * Updated for frontend-only architecture
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -8,52 +9,44 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 
-// Mock the API module
-vi.mock('./utils/api', () => ({
-  fetchProviders: vi.fn(),
-  fetchModels: vi.fn(),
-  rescanProviders: vi.fn(),
-  improvePrompt: vi.fn()
-}));
-
-import { fetchProviders, fetchModels, rescanProviders, improvePrompt } from './utils/api';
-
-describe('App Integration', () => {
-  const mockProviders = [
-    { id: 'openai', name: 'OpenAI', available: true, builtin: true },
-    { id: 'claude', name: 'Claude', available: true, builtin: true },
-    { id: 'copilot', name: 'Copilot', available: false, builtin: true }
-  ];
-
-  const mockModels = [
+// Mock the LLM services
+vi.mock('./services/llm', () => ({
+  isFrontendProvider: vi.fn((id) => id === 'openai' || id === 'gemini'),
+  fetchProviderModels: vi.fn(() => Promise.resolve([
     { id: 'gpt-4o', label: 'GPT-4o' },
     { id: 'gpt-4o-mini', label: 'GPT-4o Mini' }
-  ];
+  ])),
+  callProvider: vi.fn(() => Promise.resolve({
+    needs_clarification: false,
+    improved_prompt: 'Improved prompt text',
+    assumptions: []
+  }))
+}));
 
+// Mock the API key storage - start with a configured OpenAI key
+vi.mock('./services/api-key-storage', () => ({
+  apiKeyStorage: {
+    has: vi.fn((id) => id === 'openai'),
+    get: vi.fn((id) => id === 'openai' ? 'sk-test-key' : ''),
+    save: vi.fn(),
+    remove: vi.fn()
+  }
+}));
+
+// Mock the prompt types API (still uses backend for now)
+vi.mock('./utils/api', () => ({
+  fetchPromptTypes: vi.fn(() => Promise.resolve({ promptTypes: [] }))
+}));
+
+import { callProvider, fetchProviderModels } from './services/llm';
+import { apiKeyStorage } from './services/api-key-storage';
+
+describe('App Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    fetchProviders.mockResolvedValue({
-      providers: mockProviders,
-      hasAvailable: true
-    });
-    
-    fetchModels.mockResolvedValue({
-      models: mockModels,
-      note: '',
-      isDynamic: true
-    });
-    
-    rescanProviders.mockResolvedValue({
-      message: 'Rescan completed',
-      results: {}
-    });
-    
-    improvePrompt.mockResolvedValue({
-      needs_clarification: false,
-      improved_prompt: 'Improved prompt text',
-      assumptions: []
-    });
+    // Reset mocks
+    apiKeyStorage.has.mockImplementation((id) => id === 'openai');
+    apiKeyStorage.get.mockImplementation((id) => id === 'openai' ? 'sk-test-key' : '');
   });
 
   afterEach(() => {
@@ -73,7 +66,8 @@ describe('App Integration', () => {
       render(<App />);
       
       await waitFor(() => {
-        expect(fetchProviders).toHaveBeenCalled();
+        // Providers should be loaded from static list, checked against API key storage
+        expect(apiKeyStorage.has).toHaveBeenCalled();
       });
     });
 
@@ -86,11 +80,10 @@ describe('App Integration', () => {
       });
     });
 
-    it('should show disabled state when no providers are available', async () => {
-      fetchProviders.mockResolvedValue({
-        providers: [],
-        hasAvailable: false
-      });
+    it('should show disabled state when no providers have API keys', async () => {
+      // Mock no API keys configured
+      apiKeyStorage.has.mockReturnValue(false);
+      apiKeyStorage.get.mockReturnValue('');
 
       render(<App />);
       
@@ -143,11 +136,11 @@ describe('App Integration', () => {
       await userEvent.click(sendButton);
       
       await waitFor(() => {
-        expect(improvePrompt).toHaveBeenCalled();
+        expect(callProvider).toHaveBeenCalled();
       });
     });
 
-    it('should clear composer after submission', async () => {
+    it('should clear composer after successful submission', async () => {
       render(<App />);
       
       await waitFor(() => {
@@ -195,7 +188,7 @@ describe('App Integration', () => {
       render(<App />);
       
       await waitFor(() => {
-        expect(fetchProviders).toHaveBeenCalled();
+        expect(apiKeyStorage.has).toHaveBeenCalled();
       });
 
       // Look for the manage providers button in inspector
@@ -203,14 +196,14 @@ describe('App Integration', () => {
       await userEvent.click(manageButton);
       
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText('Manage Providers')).toBeInTheDocument();
+      expect(screen.getByText('API Key Settings')).toBeInTheDocument();
     });
 
     it('should close provider manager on close button click', async () => {
       render(<App />);
       
       await waitFor(() => {
-        expect(fetchProviders).toHaveBeenCalled();
+        expect(apiKeyStorage.has).toHaveBeenCalled();
       });
 
       const manageButton = await screen.findByText(/manage providers/i);
@@ -228,7 +221,7 @@ describe('App Integration', () => {
       render(<App />);
       
       await waitFor(() => {
-        expect(fetchProviders).toHaveBeenCalled();
+        expect(apiKeyStorage.has).toHaveBeenCalled();
       });
 
       // Look for theme toggle button
@@ -238,20 +231,8 @@ describe('App Integration', () => {
   });
 
   describe('Error Handling', () => {
-    it('should show error when providers fail to load', async () => {
-      fetchProviders.mockRejectedValue(new Error('Network error'));
-
-      render(<App />);
-      
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-      });
-
-      expect(screen.getByText(/failed to load providers/i)).toBeInTheDocument();
-    });
-
     it('should show error when prompt submission fails', async () => {
-      improvePrompt.mockRejectedValue(new Error('Request failed'));
+      callProvider.mockRejectedValue(new Error('Request failed'));
 
       render(<App />);
       
@@ -272,28 +253,17 @@ describe('App Integration', () => {
   });
 
   describe('Model Selection', () => {
-    it('should load models when provider is selected', async () => {
+    it('should load models when provider has API key', async () => {
       render(<App />);
       
       await waitFor(() => {
-        expect(fetchProviders).toHaveBeenCalled();
+        expect(apiKeyStorage.has).toHaveBeenCalled();
       });
 
       // Wait for initial model load
       await waitFor(() => {
-        expect(fetchModels).toHaveBeenCalled();
+        expect(fetchProviderModels).toHaveBeenCalled();
       });
-    });
-
-    it('should display available models in selector', async () => {
-      render(<App />);
-      
-      await waitFor(() => {
-        expect(fetchModels).toHaveBeenCalled();
-      });
-
-      // The model selector should show loaded models
-      // This depends on the implementation of the ModelSelector
     });
   });
 
@@ -311,7 +281,7 @@ describe('App Integration', () => {
       await userEvent.keyboard('{Control>}{Enter}{/Control}');
       
       await waitFor(() => {
-        expect(improvePrompt).toHaveBeenCalled();
+        expect(callProvider).toHaveBeenCalled();
       });
     });
   });
@@ -321,7 +291,7 @@ describe('App Integration', () => {
       render(<App />);
       
       await waitFor(() => {
-        expect(fetchProviders).toHaveBeenCalled();
+        expect(apiKeyStorage.has).toHaveBeenCalled();
       });
 
       expect(screen.getByLabelText(/prompt input/i)).toBeInTheDocument();
@@ -345,30 +315,18 @@ describe('App Integration', () => {
 describe('App Edge Cases', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    fetchProviders.mockResolvedValue({
-      providers: [{ id: 'openai', name: 'OpenAI', available: true, builtin: true }],
-      hasAvailable: true
-    });
-    
-    fetchModels.mockResolvedValue({
-      models: [{ id: 'gpt-4o', label: 'GPT-4o' }],
-      note: '',
-      isDynamic: true
-    });
+    // Reset to default behavior
+    apiKeyStorage.has.mockImplementation((id) => id === 'openai');
+    apiKeyStorage.get.mockImplementation((id) => id === 'openai' ? 'sk-test-key' : '');
   });
 
   it('should handle empty model list gracefully', async () => {
-    fetchModels.mockResolvedValue({
-      models: [],
-      note: 'No models available',
-      isDynamic: false
-    });
+    fetchProviderModels.mockResolvedValue([]);
 
     render(<App />);
     
     await waitFor(() => {
-      expect(fetchModels).toHaveBeenCalled();
+      expect(fetchProviderModels).toHaveBeenCalled();
     });
 
     // App should still be functional
@@ -396,24 +354,14 @@ describe('App Edge Cases', () => {
     });
   });
 
-  it('should handle rapid provider switching', async () => {
-    const providers = [
-      { id: 'openai', name: 'OpenAI', available: true, builtin: true },
-      { id: 'claude', name: 'Claude', available: true, builtin: true }
-    ];
-
-    fetchProviders.mockResolvedValue({
-      providers,
-      hasAvailable: true
-    });
-
+  it('should handle provider switching', async () => {
     render(<App />);
     
     await waitFor(() => {
-      expect(fetchProviders).toHaveBeenCalled();
+      expect(apiKeyStorage.has).toHaveBeenCalled();
     });
 
-    // App should handle rapid changes without crashing
+    // App should handle changes without crashing
     // This is a stress test scenario
   });
 });

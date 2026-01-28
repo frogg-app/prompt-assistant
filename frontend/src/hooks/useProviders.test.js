@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useProviders } from './useProviders';
+import React from 'react';
 
 // Mock the LLM services
 vi.mock('../services/llm', () => ({
@@ -31,12 +32,9 @@ vi.mock('../utils/schema', () => ({
   getModelDisplayInfo: vi.fn((id, label) => ({ displayName: label || id }))
 }));
 
-// Mock useLocalStorage
+// Mock useLocalStorage with a simple React.useState fallback
 vi.mock('./useLocalStorage', () => ({
-  useLocalStorage: vi.fn((key, defaultValue) => {
-    const [value, setValue] = vi.importActual('react').useState(defaultValue);
-    return [value, setValue];
-  })
+  useLocalStorage: (key, defaultValue) => React.useState(defaultValue)
 }));
 
 import { fetchProviderModels } from '../services/llm';
