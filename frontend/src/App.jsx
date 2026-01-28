@@ -2,23 +2,30 @@
  * App.jsx - Main Application Component
  * 
  * Modern AI chat interface for prompt refinement with:
+ * - Left sidebar for chat history and navigation
  * - Chat window for conversation history
  * - Composer for prompt input
  * - Inspector panel for options (model, prompt type, constraints)
- * - Responsive and accessible design
+ * - Setup wizard for new chats
+ * - User authentication support
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
 import ChatWindow from './components/ChatWindow/ChatWindow';
 import Composer from './components/Composer/Composer';
 import { InspectorPanel } from './components/Inspector';
 import { ProviderManager } from './components/ProviderManager';
 import PromptTypeManager from './components/ProviderManager/PromptTypeManager';
+import { SetupWizard } from './components/SetupWizard';
+import { AuthModal } from './components/Auth';
 import { useChat } from './hooks/useChat';
 import { useProviders } from './hooks/useProviders';
 import { usePromptTypes } from './hooks/usePromptTypes';
+import { useChatSessions } from './hooks/useChatSessions';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { useAuth } from './contexts/AuthContext';
 import { buildPromptPayload, validatePayload } from './utils/schema';
 import { STORAGE_KEYS } from './utils/constants';
 import './styles/globals.css';
@@ -27,8 +34,14 @@ import './styles/globals.css';
  * Main App component
  */
 export default function App() {
+  // Auth state
+  const { user, isAuthenticated } = useAuth();
+  
   // Theme state
   const [theme, setTheme] = useLocalStorage(STORAGE_KEYS.THEME, 'system');
+  
+  // Sidebar visibility
+  const [isSidebarOpen, setIsSidebarOpen] = useLocalStorage('sidebar-open', true);
   
   // Inspector panel visibility
   const [isInspectorOpen, setIsInspectorOpen] = useState(true);
@@ -38,6 +51,12 @@ export default function App() {
   
   // Prompt type manager visibility
   const [isPromptTypeManagerOpen, setIsPromptTypeManagerOpen] = useState(false);
+  
+  // Auth modal visibility
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  
+  // Setup wizard visibility
+  const [isSetupWizardOpen, setIsSetupWizardOpen] = useState(false);
   
   // Prompt input
   const [promptText, setPromptText] = useState('');
@@ -56,6 +75,17 @@ export default function App() {
   
   // Learning mode (opt-in) - provides detailed feedback and scores
   const [learningMode, setLearningMode] = useState(false);
+  
+  // Chat sessions management
+  const {
+    sessions,
+    currentSession,
+    currentSessionId,
+    createSession,
+    updateSessionMessages,
+    deleteSession,
+    selectSession
+  } = useChatSessions(user?.id);
   
   // Provider and model state
   const {
@@ -111,6 +141,11 @@ export default function App() {
   const handleThemeChange = useCallback((newTheme) => {
     setTheme(newTheme);
   }, [setTheme]);
+
+  // Toggle sidebar
+  const handleToggleSidebar = useCallback(() => {
+    setIsSidebarOpen(prev => !prev);
+  }, [setIsSidebarOpen]);
 
   // Toggle inspector panel
   const handleToggleInspector = useCallback(() => {
@@ -227,10 +262,44 @@ export default function App() {
     cancelClarification();
   }, [cancelClarification]);
 
-  // Handle new chat
+  // Handle new chat - show setup wizard if no defaults
   const handleNewChat = useCallback(() => {
+    // Create a new session
+    createSession({
+      provider: selectedProvider,
+      model: selectedModel,
+      promptType,
+      learningMode
+    });
+    
+    // Clear current chat
     clearChat();
-  }, [clearChat]);
+    
+    // Show setup wizard if provider not configured
+    if (!providersReady) {
+      setIsSetupWizardOpen(true);
+    }
+  }, [createSession, clearChat, providersReady, selectedProvider, selectedModel, promptType, learningMode]);
+
+  // Handle session selection
+  const handleSelectSession = useCallback((sessionId) => {
+    selectSession(sessionId);
+  }, [selectSession]);
+
+  // Handle session deletion
+  const handleDeleteSession = useCallback((sessionId) => {
+    deleteSession(sessionId);
+  }, [deleteSession]);
+
+  // Handle setup wizard complete
+  const handleSetupComplete = useCallback(() => {
+    // Setup is complete, wizard will close
+  }, []);
+
+  // Handle add constraints from wizard
+  const handleAddConstraintsFromWizard = useCallback(() => {
+    setIsInspectorOpen(true);
+  }, []);
 
   // Determine if input is disabled (prevents typing)
   const isInputDisabled = useMemo(() => {
@@ -261,6 +330,21 @@ export default function App() {
       
       {/* Main layout */}
       <div className="app__layout">
+        {/* Left Sidebar */}
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onToggle={handleToggleSidebar}
+          chatSessions={sessions}
+          currentSessionId={currentSessionId}
+          onNewChat={handleNewChat}
+          onSelectSession={handleSelectSession}
+          onDeleteSession={handleDeleteSession}
+          user={user}
+          onSignIn={() => setIsAuthModalOpen(true)}
+          onSignOut={() => {}}
+          onOpenSettings={() => setIsProviderManagerOpen(true)}
+        />
+        
         {/* Chat area */}
         <main className="app__main">
           {/* Provider error notice */}
@@ -339,6 +423,32 @@ export default function App() {
         onClose={() => setIsPromptTypeManagerOpen(false)}
         promptTypes={promptTypes}
         onRefresh={refreshPromptTypes}
+      />
+      
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
+      
+      {/* Setup Wizard */}
+      <SetupWizard
+        isOpen={isSetupWizardOpen}
+        onClose={() => setIsSetupWizardOpen(false)}
+        onComplete={handleSetupComplete}
+        providers={providers}
+        models={models}
+        selectedProvider={selectedProvider}
+        selectedModel={selectedModel}
+        onProviderChange={setSelectedProvider}
+        onModelChange={setSelectedModel}
+        promptTypes={promptTypes}
+        selectedPromptType={promptType}
+        onPromptTypeChange={setPromptType}
+        learningMode={learningMode}
+        onLearningModeChange={setLearningMode}
+        onAddConstraints={handleAddConstraintsFromWizard}
+        hasDefaults={!!selectedProvider && !!selectedModel}
       />
       
       {/* Mobile inspector toggle button */}
