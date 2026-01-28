@@ -31,8 +31,8 @@ const EmailIcon = () => (
   </svg>
 );
 
-export default function AuthModal({ isOpen, onClose }) {
-  const { signInWithEmail, signUpWithEmail, signInWithGitHub, signInWithGoogle, isLoading, error } = useAuth();
+export default function AuthModal({ isOpen, onClose, requireAuth = false }) {
+  const { signInWithEmail, signUpWithEmail, signInWithGitHub, signInWithGoogle, isLoading, error, user } = useAuth();
   
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'email-signin' | 'email-signup'
   const [email, setEmail] = useState('');
@@ -41,6 +41,14 @@ export default function AuthModal({ isOpen, onClose }) {
   const [localError, setLocalError] = useState(null);
 
   if (!isOpen) return null;
+
+  // Prevent closing if auth is required and user is not authenticated
+  const handleClose = () => {
+    if (requireAuth && !user) {
+      return; // Don't allow closing
+    }
+    handleClose();
+  };
 
   const handleEmailSignIn = async (e) => {
     e.preventDefault();
@@ -53,7 +61,7 @@ export default function AuthModal({ isOpen, onClose }) {
     
     const result = await signInWithEmail(email, password);
     if (result.success) {
-      onClose();
+      handleClose();
     } else {
       setLocalError(result.error);
     }
@@ -75,7 +83,7 @@ export default function AuthModal({ isOpen, onClose }) {
     
     const result = await signUpWithEmail(email, password, displayName);
     if (result.success) {
-      onClose();
+      handleClose();
     } else {
       setLocalError(result.error);
     }
@@ -85,7 +93,7 @@ export default function AuthModal({ isOpen, onClose }) {
     setLocalError(null);
     const result = await signInWithGitHub();
     if (result.success) {
-      onClose();
+      handleClose();
     } else {
       setLocalError(result.error);
     }
@@ -95,7 +103,7 @@ export default function AuthModal({ isOpen, onClose }) {
     setLocalError(null);
     const result = await signInWithGoogle();
     if (result.success) {
-      onClose();
+      handleClose();
     } else {
       setLocalError(result.error);
     }
@@ -106,9 +114,11 @@ export default function AuthModal({ isOpen, onClose }) {
   // Email sign in form
   if (mode === 'email-signin') {
     return (
-      <div className="auth-modal__overlay" onClick={onClose}>
+      <div className="auth-modal__overlay" onClick={handleClose}>
         <div className="auth-modal" onClick={e => e.stopPropagation()}>
-          <button className="auth-modal__close" onClick={onClose} aria-label="Close">×</button>
+          {!requireAuth && (
+            <button className="auth-modal__close" onClick={handleClose} aria-label="Close">×</button>
+          )}
           
           <div className="auth-modal__header">
             <h2>Sign in with Email</h2>
@@ -173,9 +183,11 @@ export default function AuthModal({ isOpen, onClose }) {
   // Email sign up form
   if (mode === 'email-signup') {
     return (
-      <div className="auth-modal__overlay" onClick={onClose}>
+      <div className="auth-modal__overlay" onClick={handleClose}>
         <div className="auth-modal" onClick={e => e.stopPropagation()}>
-          <button className="auth-modal__close" onClick={onClose} aria-label="Close">×</button>
+          {!requireAuth && (
+            <button className="auth-modal__close" onClick={handleClose} aria-label="Close">×</button>
+          )}
           
           <div className="auth-modal__header">
             <h2>Create Account</h2>
@@ -251,9 +263,11 @@ export default function AuthModal({ isOpen, onClose }) {
 
   // Main sign in / sign up screen
   return (
-    <div className="auth-modal__overlay" onClick={onClose}>
+    <div className="auth-modal__overlay" onClick={handleClose}>
       <div className="auth-modal" onClick={e => e.stopPropagation()}>
-        <button className="auth-modal__close" onClick={onClose} aria-label="Close">×</button>
+        {!requireAuth && (
+          <button className="auth-modal__close" onClick={handleClose} aria-label="Close">×</button>
+        )}
         
         <div className="auth-modal__header">
           <h2>{mode === 'signin' ? 'Welcome Back' : 'Create Account'}</h2>

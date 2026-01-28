@@ -3,7 +3,7 @@
  * Permanent left sidebar for chat history and navigation
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui';
 import './Sidebar.css';
 
@@ -98,7 +98,7 @@ export default function Sidebar({
   // Handle session selection and close on mobile
   const handleSelectSession = (sessionId) => {
     onSelectSession(sessionId);
-    if (onClose && window.innerWidth <= 768) {
+    if (onClose && typeof window !== 'undefined' && window.innerWidth < 768) {
       onClose();
     }
   };
@@ -106,10 +106,24 @@ export default function Sidebar({
   // Handle new chat and close on mobile
   const handleNewChat = () => {
     onNewChat();
-    if (onClose && window.innerWidth <= 768) {
+    if (onClose && typeof window !== 'undefined' && window.innerWidth < 768) {
       onClose();
     }
   };
+
+  // Handle Escape key to close mobile drawer
+  useEffect(() => {
+    if (!isOpen || typeof window === 'undefined') return;
+
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && onClose && window.innerWidth < 768) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
 
   return (
     <>

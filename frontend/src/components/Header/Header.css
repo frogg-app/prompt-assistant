@@ -69,7 +69,7 @@
 }
 
 /* Hide menu button on larger screens where sidebar is always visible */
-@media (min-width: 769px) {
+@media (min-width: 768px) {
   .header__menu-button {
     display: none;
   }
