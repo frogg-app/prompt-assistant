@@ -1,11 +1,12 @@
 /**
  * ProviderManager Component
- * Modal for managing custom providers (add, edit, delete)
+ * Modal for managing API keys and custom providers
+ * Now focuses on frontend-only API key management for OpenAI and Gemini
  */
 
-import { useState } from 'react';
-import ProviderForm from './ProviderForm';
-import ModelFilter from './ModelFilter';
+import { useState, useEffect } from 'react';
+import { apiKeyStorage } from '../../services/api-key-storage';
+import { testProviderApiKey } from '../../services/llm';
 import './ProviderManager.css';
 
 export default function ProviderManager({ 
@@ -19,74 +20,97 @@ export default function ProviderManager({
   isRescanning = false,
   onModelsFiltered
 }) {
-  const [view, setView] = useState('list'); // 'list', 'add', 'edit', 'filter'
-  const [selectedProvider, setSelectedProvider] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [apiKeys, setApiKeys] = useState({});
+  const [editingProvider, setEditingProvider] = useState(null);
+  const [keyInput, setKeyInput] = useState('');
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Load current API keys on mount
+  useEffect(() => {
+    if (isOpen) {
+      const keys = {};
+      providers.forEach(p => {
+        keys[p.id] = apiKeyStorage.has(p.id);
+      });
+      setApiKeys(keys);
+      setEditingProvider(null);
+      setKeyInput('');
+      setTestResult(null);
+    }
+  }, [isOpen, providers]);
 
   if (!isOpen) return null;
 
-  const handleAddProvider = () => {
-    setSelectedProvider(null);
-    setView('add');
+  const handleEditKey = (providerId) => {
+    setEditingProvider(providerId);
+    // Don't pre-fill the input with existing key for security
+    setKeyInput('');
+    setTestResult(null);
   };
 
-  const handleEditProvider = (provider) => {
-    setSelectedProvider(provider);
-    setView('edit');
+  const handleCancelEdit = () => {
+    setEditingProvider(null);
+    setKeyInput('');
+    setTestResult(null);
   };
 
-  const handleFilterModels = (provider) => {
-    setSelectedProvider(provider);
-    setView('filter');
+  const handleTestKey = async () => {
+    if (!keyInput.trim() || !editingProvider) return;
+    
+    setIsTesting(true);
+    setTestResult(null);
+    
+    try {
+      const result = await testProviderApiKey(editingProvider, keyInput.trim());
+      setTestResult(result);
+    } catch (error) {
+      setTestResult({ valid: false, error: error.message });
+    } finally {
+      setIsTesting(false);
+    }
   };
 
-  const handleDeleteProvider = async (providerId) => {
-    // TODO: Replace with proper confirmation modal for better accessibility
-    if (!window.confirm('Are you sure you want to delete this provider?')) {
+  const handleSaveKey = async () => {
+    if (!keyInput.trim() || !editingProvider) return;
+    
+    setIsSaving(true);
+    
+    try {
+      apiKeyStorage.save(editingProvider, keyInput.trim());
+      setApiKeys(prev => ({ ...prev, [editingProvider]: true }));
+      setEditingProvider(null);
+      setKeyInput('');
+      setTestResult(null);
+      
+      // Refresh providers to update availability
+      if (onRescan) {
+        await onRescan();
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRemoveKey = async (providerId) => {
+    if (!window.confirm(`Remove API key for ${providerId}? You will need to re-enter it to use this provider.`)) {
       return;
     }
-
-    setIsDeleting(true);
-    try {
-      await onProviderDeleted(providerId);
-      setView('list');
-    } catch (error) {
-      // TODO: Replace alert with toast notification or inline error display
-      window.alert(`Failed to delete provider: ${error.message}`);
-    } finally {
-      setIsDeleting(false);
+    
+    apiKeyStorage.remove(providerId);
+    setApiKeys(prev => ({ ...prev, [providerId]: false }));
+    
+    // Refresh providers to update availability
+    if (onRescan) {
+      await onRescan();
     }
   };
 
-  const handleFormSubmit = async (providerData) => {
-    try {
-      if (view === 'add') {
-        await onProviderAdded(providerData);
-      } else if (view === 'edit') {
-        await onProviderUpdated(selectedProvider.id, providerData);
-      }
-      setView('list');
-      setSelectedProvider(null);
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const handleFormCancel = () => {
-    setView('list');
-    setSelectedProvider(null);
-  };
-
-  const handleFilterSubmit = async (filteredModels) => {
-    // Notify parent that models were filtered for this provider
-    if (selectedProvider && onModelsFiltered) {
-      onModelsFiltered(selectedProvider.id);
-    }
-    setView('list');
-    setSelectedProvider(null);
-  };
-
-  const customProviders = providers.filter(p => !p.builtin);
+  // Filter to only show frontend providers (OpenAI, Gemini)
+  const frontendProviders = providers.filter(p => 
+    p.id === 'openai' || p.id === 'gemini'
+  );
 
   return (
     <div className="provider-manager__overlay" onClick={onClose}>
@@ -97,12 +121,7 @@ export default function ProviderManager({
         aria-labelledby="provider-manager-title"
       >
         <div className="provider-manager__header">
-          <h2 id="provider-manager-title">
-            {view === 'list' && 'Manage Providers'}
-            {view === 'add' && 'Add New Provider'}
-            {view === 'edit' && 'Edit Provider'}
-            {view === 'filter' && 'Filter Models'}
-          </h2>
+          <h2 id="provider-manager-title">API Key Settings</h2>
           <button
             className="provider-manager__close"
             onClick={onClose}
@@ -116,150 +135,137 @@ export default function ProviderManager({
         </div>
 
         <div className="provider-manager__content">
-          {view === 'list' && (
-            <>
-              <div className="provider-manager__actions">
-                <button 
-                  className="provider-manager__add-btn"
-                  onClick={handleAddProvider}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  Add Custom Provider
-                </button>
-                <button 
-                  className="provider-manager__rescan-btn"
-                  onClick={onRescan}
-                  disabled={isRescanning}
-                  title="Rescan all providers for available models"
-                >
-                  <svg 
-                    width="16" 
-                    height="16" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
-                    className={isRescanning ? 'spinning' : ''}
-                  >
-                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-                  </svg>
-                  {isRescanning ? 'Rescanning...' : 'Rescan Models'}
-                </button>
-              </div>
+          <div className="provider-manager__info-banner">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <div>
+              <p><strong>Your API keys are stored locally in your browser.</strong></p>
+              <p>Keys are never sent to any server. All API calls are made directly from your browser to the provider.</p>
+            </div>
+          </div>
 
-              {customProviders.length === 0 ? (
-                <div className="provider-manager__empty">
-                  <p>No custom providers configured.</p>
-                  <p className="provider-manager__hint">
-                    Click "Add Custom Provider" to add OpenAI-compatible APIs or other custom LLM providers.
-                  </p>
+          <div className="provider-manager__providers-list">
+            {frontendProviders.map(provider => (
+              <div key={provider.id} className="provider-manager__provider-card">
+                <div className="provider-manager__provider-header">
+                  <div className="provider-manager__provider-info">
+                    <h3>{provider.name}</h3>
+                    <span className={`provider-manager__status ${apiKeys[provider.id] ? 'configured' : 'not-configured'}`}>
+                      {apiKeys[provider.id] ? '✓ API Key Configured' : '○ Not Configured'}
+                    </span>
+                  </div>
+                  
+                  {editingProvider !== provider.id && (
+                    <div className="provider-manager__provider-actions">
+                      <button
+                        className="provider-manager__btn provider-manager__btn--primary"
+                        onClick={() => handleEditKey(provider.id)}
+                      >
+                        {apiKeys[provider.id] ? 'Change Key' : 'Add Key'}
+                      </button>
+                      {apiKeys[provider.id] && (
+                        <button
+                          className="provider-manager__btn provider-manager__btn--danger"
+                          onClick={() => handleRemoveKey(provider.id)}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="provider-manager__list">
-                  {customProviders.map(provider => (
-                    <div key={provider.id} className="provider-manager__item">
-                      <div className="provider-manager__item-info">
-                        <h3>{provider.name}</h3>
-                        <p className="provider-manager__item-id">ID: {provider.id}</p>
-                        <p className="provider-manager__item-type">
-                          Type: {provider.config?.type || 'custom'}
+
+                {/* Setup instructions */}
+                {!apiKeys[provider.id] && editingProvider !== provider.id && provider.setup && (
+                  <div className="provider-manager__setup-hint">
+                    <p>
+                      <a href={provider.setup.docs} target="_blank" rel="noopener noreferrer">
+                        Get your API key →
+                      </a>
+                    </p>
+                  </div>
+                )}
+
+                {/* Key editing form */}
+                {editingProvider === provider.id && (
+                  <div className="provider-manager__key-form">
+                    <div className="provider-manager__key-input-group">
+                      <label htmlFor={`api-key-${provider.id}`}>
+                        API Key
+                      </label>
+                      <input
+                        id={`api-key-${provider.id}`}
+                        type="password"
+                        value={keyInput}
+                        onChange={(e) => setKeyInput(e.target.value)}
+                        placeholder={`Enter your ${provider.name} API key`}
+                        autoComplete="off"
+                        className="provider-manager__key-input"
+                      />
+                    </div>
+
+                    {testResult && (
+                      <div className={`provider-manager__test-result ${testResult.valid ? 'success' : 'error'}`}>
+                        {testResult.valid ? '✓ API key is valid' : `✗ ${testResult.error || 'Invalid API key'}`}
+                      </div>
+                    )}
+
+                    <div className="provider-manager__key-actions">
+                      <button
+                        className="provider-manager__btn"
+                        onClick={handleCancelEdit}
+                        disabled={isTesting || isSaving}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className="provider-manager__btn"
+                        onClick={handleTestKey}
+                        disabled={!keyInput.trim() || isTesting || isSaving}
+                      >
+                        {isTesting ? 'Testing...' : 'Test Key'}
+                      </button>
+                      <button
+                        className="provider-manager__btn provider-manager__btn--primary"
+                        onClick={handleSaveKey}
+                        disabled={!keyInput.trim() || isTesting || isSaving}
+                      >
+                        {isSaving ? 'Saving...' : 'Save Key'}
+                      </button>
+                    </div>
+
+                    {provider.setup && (
+                      <div className="provider-manager__setup-steps">
+                        <p><strong>How to get your API key:</strong></p>
+                        <ol>
+                          {provider.setup.steps.map((step, i) => (
+                            <li key={i}>{step}</li>
+                          ))}
+                        </ol>
+                        <p>
+                          <a href={provider.setup.docs} target="_blank" rel="noopener noreferrer">
+                            Open {provider.name} API Keys page →
+                          </a>
                         </p>
                       </div>
-                      <div className="provider-manager__item-actions">
-                        <button
-                          onClick={() => handleFilterModels(provider)}
-                          className="provider-manager__item-btn"
-                          title="Filter models"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                          </svg>
-                          Filter Models
-                        </button>
-                        <button
-                          onClick={() => handleEditProvider(provider)}
-                          className="provider-manager__item-btn"
-                          title="Edit provider"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProvider(provider.id)}
-                          className="provider-manager__item-btn provider-manager__item-btn--danger"
-                          disabled={isDeleting}
-                          title="Delete provider"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          </svg>
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="provider-manager__builtin-section">
-                <h3>Built-in Providers</h3>
-                <p className="provider-manager__hint">
-                  Built-in providers (OpenAI, Gemini, Copilot CLI, Claude Code) cannot be modified.
-                  Configure them using environment variables or CLI authentication.
-                </p>
-                <div className="provider-manager__builtin-list">
-                  {providers.filter(p => p.builtin).map(provider => (
-                    <div key={provider.id} className="provider-manager__builtin-item">
-                      <span className="provider-manager__builtin-name">{provider.name}</span>
-                      <div className="provider-manager__builtin-actions">
-                        {provider.available && (
-                          <button
-                            onClick={() => handleFilterModels(provider)}
-                            className="provider-manager__settings-btn"
-                            title="Filter models for this provider"
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                            </svg>
-                            Settings
-                          </button>
-                        )}
-                        <span className={`provider-manager__builtin-status ${provider.available ? 'available' : 'unavailable'}`}>
-                          {provider.available ? '✓ Available' : '✗ Not configured'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </>
-          )}
+            ))}
+          </div>
 
-          {(view === 'add' || view === 'edit') && (
-            <ProviderForm
-              provider={selectedProvider}
-              onSubmit={handleFormSubmit}
-              onCancel={handleFormCancel}
-              isEdit={view === 'edit'}
-            />
-          )}
-
-          {view === 'filter' && selectedProvider && (
-            <ModelFilter
-              provider={selectedProvider}
-              onSubmit={handleFilterSubmit}
-              onCancel={handleFormCancel}
-            />
-          )}
+          <div className="provider-manager__footer-note">
+            <h4>About CLI-based providers</h4>
+            <p>
+              Copilot CLI and Claude Code require local CLI authentication and are not supported 
+              in this frontend-only version. These tools need to run on a backend server with 
+              CLI access. See the CLI Tooling Plan in the documentation for future support.
+            </p>
+          </div>
         </div>
       </div>
     </div>

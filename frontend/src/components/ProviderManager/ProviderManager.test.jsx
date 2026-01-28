@@ -1,5 +1,6 @@
 /**
  * ProviderManager Component Tests
+ * Updated for frontend-only API key management UI
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -7,39 +8,46 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ProviderManager from './ProviderManager';
 
-// Mock child components
-vi.mock('./ProviderForm', () => ({
-  default: ({ onCancel, onSubmit }) => (
-    <div data-testid="provider-form">
-      <button onClick={onCancel}>Cancel</button>
-      <button onClick={() => onSubmit({ id: 'test', name: 'Test' })}>Submit</button>
-    </div>
-  )
+// Mock the services
+vi.mock('../../services/api-key-storage', () => ({
+  apiKeyStorage: {
+    has: vi.fn(() => false),
+    get: vi.fn(() => ''),
+    save: vi.fn(),
+    remove: vi.fn()
+  }
 }));
 
-vi.mock('./ModelFilter', () => ({
-  default: ({ provider, onCancel }) => (
-    <div data-testid="model-filter">
-      Filtering: {provider?.name}
-      <button onClick={onCancel}>Back</button>
-    </div>
-  )
+vi.mock('../../services/llm', () => ({
+  testProviderApiKey: vi.fn(() => Promise.resolve({ valid: true }))
 }));
 
 describe('ProviderManager', () => {
   const mockProviders = [
-    { id: 'openai', name: 'OpenAI', available: true, builtin: true },
-    { id: 'claude', name: 'Claude', available: false, builtin: true },
-    { id: 'custom-1', name: 'Custom Provider', available: true, builtin: false, config: { type: 'api_key' } }
+    { 
+      id: 'openai', 
+      name: 'OpenAI', 
+      available: false,
+      setup: {
+        docs: 'https://platform.openai.com/api-keys',
+        steps: ['Get your API key']
+      }
+    },
+    { 
+      id: 'gemini', 
+      name: 'Google Gemini', 
+      available: false,
+      setup: {
+        docs: 'https://ai.google.dev/gemini-api/docs/api-key',
+        steps: ['Get your API key']
+      }
+    }
   ];
 
   const defaultProps = {
     isOpen: true,
     onClose: vi.fn(),
     providers: mockProviders,
-    onProviderAdded: vi.fn(),
-    onProviderUpdated: vi.fn(),
-    onProviderDeleted: vi.fn(),
     onRescan: vi.fn(),
     isRescanning: false
   };
@@ -56,56 +64,31 @@ describe('ProviderManager', () => {
   it('should render when isOpen is true', () => {
     render(<ProviderManager {...defaultProps} />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Manage Providers')).toBeInTheDocument();
+    expect(screen.getByText('API Key Settings')).toBeInTheDocument();
   });
 
-  it('should display Add Custom Provider button', () => {
+  it('should display info banner about local storage', () => {
     render(<ProviderManager {...defaultProps} />);
-    expect(screen.getByText('Add Custom Provider')).toBeInTheDocument();
+    expect(screen.getByText(/Your API keys are stored locally/i)).toBeInTheDocument();
+    expect(screen.getByText(/Keys are never sent to any server/i)).toBeInTheDocument();
   });
 
-  it('should display Rescan Models button', () => {
+  it('should display provider cards', () => {
     render(<ProviderManager {...defaultProps} />);
-    expect(screen.getByText('Rescan Models')).toBeInTheDocument();
-  });
-
-  it('should call onRescan when Rescan Models button is clicked', async () => {
-    render(<ProviderManager {...defaultProps} />);
-    
-    const rescanButton = screen.getByText('Rescan Models');
-    await userEvent.click(rescanButton);
-    
-    expect(defaultProps.onRescan).toHaveBeenCalledTimes(1);
-  });
-
-  it('should show "Rescanning..." text when isRescanning is true', () => {
-    render(<ProviderManager {...defaultProps} isRescanning={true} />);
-    expect(screen.getByText('Rescanning...')).toBeInTheDocument();
-  });
-
-  it('should disable Rescan button when isRescanning is true', () => {
-    render(<ProviderManager {...defaultProps} isRescanning={true} />);
-    
-    const rescanButton = screen.getByText('Rescanning...').closest('button');
-    expect(rescanButton).toBeDisabled();
-  });
-
-  it('should display custom providers in the list', () => {
-    render(<ProviderManager {...defaultProps} />);
-    expect(screen.getByText('Custom Provider')).toBeInTheDocument();
-  });
-
-  it('should display built-in providers section', () => {
-    render(<ProviderManager {...defaultProps} />);
-    expect(screen.getByText('Built-in Providers')).toBeInTheDocument();
     expect(screen.getByText('OpenAI')).toBeInTheDocument();
-    expect(screen.getByText('Claude')).toBeInTheDocument();
+    expect(screen.getByText('Google Gemini')).toBeInTheDocument();
   });
 
-  it('should show availability status for built-in providers', () => {
+  it('should show "Not Configured" status when no API key', () => {
     render(<ProviderManager {...defaultProps} />);
-    expect(screen.getByText('✓ Available')).toBeInTheDocument();
-    expect(screen.getByText('✗ Not configured')).toBeInTheDocument();
+    const notConfiguredElements = screen.getAllByText(/Not Configured/i);
+    expect(notConfiguredElements.length).toBeGreaterThan(0);
+  });
+
+  it('should show "Add Key" button for unconfigured providers', () => {
+    render(<ProviderManager {...defaultProps} />);
+    const addKeyButtons = screen.getAllByText('Add Key');
+    expect(addKeyButtons.length).toBe(2); // One for each provider
   });
 
   it('should call onClose when close button is clicked', async () => {
@@ -135,107 +118,52 @@ describe('ProviderManager', () => {
     expect(defaultProps.onClose).not.toHaveBeenCalled();
   });
 
-  it('should switch to add view when Add Custom Provider is clicked', async () => {
+  it('should display footer note about CLI providers', () => {
+    render(<ProviderManager {...defaultProps} />);
+    expect(screen.getByText('About CLI-based providers')).toBeInTheDocument();
+    expect(screen.getByText(/Copilot CLI and Claude Code/i)).toBeInTheDocument();
+  });
+
+  it('should show API key input when Add Key is clicked', async () => {
     render(<ProviderManager {...defaultProps} />);
     
-    await userEvent.click(screen.getByText('Add Custom Provider'));
+    const addKeyButtons = screen.getAllByText('Add Key');
+    await userEvent.click(addKeyButtons[0]); // Click first Add Key button
     
-    expect(screen.getByText('Add New Provider')).toBeInTheDocument();
-    expect(screen.getByTestId('provider-form')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Enter your OpenAI API key/i)).toBeInTheDocument();
   });
 
-  it('should switch to edit view when Edit button is clicked on custom provider', async () => {
+  it('should show Test Key and Save Key buttons in key form', async () => {
     render(<ProviderManager {...defaultProps} />);
     
-    const editButtons = screen.getAllByText('Edit');
-    await userEvent.click(editButtons[0]); // Click first Edit button (custom provider)
+    const addKeyButtons = screen.getAllByText('Add Key');
+    await userEvent.click(addKeyButtons[0]);
     
-    expect(screen.getByText('Edit Provider')).toBeInTheDocument();
+    expect(screen.getByText('Test Key')).toBeInTheDocument();
+    expect(screen.getByText('Save Key')).toBeInTheDocument();
   });
 
-  it('should switch to filter view when Filter Models is clicked', async () => {
+  it('should show Cancel button in key form', async () => {
     render(<ProviderManager {...defaultProps} />);
     
-    const filterButtons = screen.getAllByText('Filter Models');
-    await userEvent.click(filterButtons[0]);
+    const addKeyButtons = screen.getAllByText('Add Key');
+    await userEvent.click(addKeyButtons[0]);
     
-    expect(screen.getByText('Filter Models')).toBeInTheDocument();
-    expect(screen.getByTestId('model-filter')).toBeInTheDocument();
+    const cancelButton = screen.getByRole('button', { name: /cancel/i });
+    expect(cancelButton).toBeInTheDocument();
   });
 
-  it('should return to list view when Cancel is clicked in add form', async () => {
+  it('should hide key form when Cancel is clicked', async () => {
     render(<ProviderManager {...defaultProps} />);
     
-    await userEvent.click(screen.getByText('Add Custom Provider'));
-    expect(screen.getByText('Add New Provider')).toBeInTheDocument();
+    const addKeyButtons = screen.getAllByText('Add Key');
+    await userEvent.click(addKeyButtons[0]);
     
-    await userEvent.click(screen.getByText('Cancel'));
-    expect(screen.getByText('Manage Providers')).toBeInTheDocument();
-  });
-
-  it('should call onProviderAdded when form is submitted in add view', async () => {
-    render(<ProviderManager {...defaultProps} />);
+    expect(screen.getByPlaceholderText(/Enter your OpenAI API key/i)).toBeInTheDocument();
     
-    await userEvent.click(screen.getByText('Add Custom Provider'));
-    await userEvent.click(screen.getByText('Submit'));
+    const cancelButton = screen.getByRole('button', { name: /cancel/i });
+    await userEvent.click(cancelButton);
     
-    expect(defaultProps.onProviderAdded).toHaveBeenCalledWith({ id: 'test', name: 'Test' });
-  });
-
-  it('should show delete confirmation and call onProviderDeleted', async () => {
-    // Mock window.confirm
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    
-    render(<ProviderManager {...defaultProps} />);
-    
-    const deleteButton = screen.getByText('Delete');
-    await userEvent.click(deleteButton);
-    
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(defaultProps.onProviderDeleted).toHaveBeenCalledWith('custom-1');
-    
-    confirmSpy.mockRestore();
-  });
-
-  it('should not delete when confirmation is cancelled', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    
-    render(<ProviderManager {...defaultProps} />);
-    
-    const deleteButton = screen.getByText('Delete');
-    await userEvent.click(deleteButton);
-    
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(defaultProps.onProviderDeleted).not.toHaveBeenCalled();
-    
-    confirmSpy.mockRestore();
-  });
-
-  it('should show Settings button for available built-in providers', () => {
-    render(<ProviderManager {...defaultProps} />);
-    
-    // OpenAI is available, should have Settings button
-    const settingsButtons = screen.getAllByText('Settings');
-    expect(settingsButtons.length).toBeGreaterThan(0);
-  });
-
-  it('should display empty state when no custom providers exist', () => {
-    const propsWithNoCustom = {
-      ...defaultProps,
-      providers: mockProviders.filter(p => p.builtin)
-    };
-    
-    render(<ProviderManager {...propsWithNoCustom} />);
-    
-    expect(screen.getByText('No custom providers configured.')).toBeInTheDocument();
-  });
-
-  it('should have spinning animation class when rescanning', () => {
-    render(<ProviderManager {...defaultProps} isRescanning={true} />);
-    
-    const rescanButton = screen.getByText('Rescanning...').closest('button');
-    const svg = rescanButton.querySelector('svg');
-    
-    expect(svg).toHaveClass('spinning');
+    expect(screen.queryByPlaceholderText(/Enter your OpenAI API key/i)).not.toBeInTheDocument();
   });
 });

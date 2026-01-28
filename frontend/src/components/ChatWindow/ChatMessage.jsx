@@ -62,9 +62,10 @@ function formatTime(date) {
 }
 
 function getScoreClass(score) {
-  if (score >= 85) return 'excellent';
-  if (score >= 70) return 'good';
-  if (score >= 50) return 'fair';
+  // Now using 0-10 scale
+  if (score >= 8.5) return 'excellent';
+  if (score >= 7) return 'good';
+  if (score >= 5) return 'fair';
   return 'poor';
 }
 
@@ -167,7 +168,7 @@ export default function ChatMessage({ message }) {
             <div className="chat-message__report-header">
               <strong>Learning Report</strong>
               <span className={`chat-message__score chat-message__score--${getScoreClass(message.metadata.learningReport.overall_score)}`}>
-                {message.metadata.learningReport.overall_score}/100
+                {message.metadata.learningReport.overall_score}/10
               </span>
             </div>
             <p className="chat-message__justification">
@@ -177,7 +178,14 @@ export default function ChatMessage({ message }) {
             {/* Score breakdown */}
             {message.metadata.learningReport.category_scores && (
               <div className="chat-message__score-breakdown">
-                <strong>Score Breakdown:</strong>
+                <div className="chat-message__score-breakdown-header">
+                  <strong>Score Breakdown:</strong>
+                  {message.metadata.learningReport.total_score !== undefined && (
+                    <span className="chat-message__total-score">
+                      Total: {message.metadata.learningReport.total_score}/60
+                    </span>
+                  )}
+                </div>
                 <div className="chat-message__scores-grid">
                   {Object.entries(message.metadata.learningReport.category_scores).map(([key, value]) => (
                     <div key={key} className="chat-message__score-item">
@@ -185,10 +193,10 @@ export default function ChatMessage({ message }) {
                       <div className="chat-message__score-bar">
                         <div 
                           className={`chat-message__score-fill chat-message__score-fill--${getScoreClass(value)}`}
-                          style={{ width: `${value}%` }}
+                          style={{ width: `${(value / 10) * 100}%` }}
                         />
                       </div>
-                      <span className="chat-message__score-value">{value}</span>
+                      <span className="chat-message__score-value">{value}/10</span>
                     </div>
                   ))}
                 </div>

@@ -33,7 +33,9 @@ function LoadingIndicator() {
 export default function ChatWindow({
   messages = [],
   isLoading = false,
-  onClarificationSubmit
+  onClarificationSubmit,
+  onClarificationCancel,
+  onClarificationSkip
 }) {
   const bottomRef = useRef(null);
   const containerRef = useRef(null);
@@ -96,6 +98,8 @@ export default function ChatWindow({
                   <ClarificationCard
                     clarifications={message.metadata.clarifications}
                     onSubmit={onClarificationSubmit}
+                    onCancel={onClarificationCancel}
+                    onSkip={onClarificationSkip}
                     isLoading={isLoading}
                   />
                 </div>

@@ -1,11 +1,50 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchProviders, fetchModels, rescanProviders } from '../utils/api';
 import { getModelDisplayInfo } from '../utils/schema';
 import { useLocalStorage } from './useLocalStorage';
 import { STORAGE_KEYS } from '../utils/constants';
+import { isFrontendProvider, fetchProviderModels } from '../services/llm';
+import { apiKeyStorage } from '../services/api-key-storage';
+
+/**
+ * Built-in frontend providers that call APIs directly from the browser
+ * CLI-based providers (copilot, claude) are not included as they require backend
+ */
+const FRONTEND_PROVIDERS = [
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    available: false, // Will be set based on API key
+    supports_dynamic_models: true,
+    setup: {
+      env: [],
+      docs: 'https://platform.openai.com/api-keys',
+      steps: [
+        'Create an API key in the OpenAI dashboard.',
+        'Enter your API key in the settings below.',
+        'Your key is stored locally in your browser.'
+      ]
+    }
+  },
+  {
+    id: 'gemini',
+    name: 'Google Gemini',
+    available: false, // Will be set based on API key
+    supports_dynamic_models: true,
+    setup: {
+      env: [],
+      docs: 'https://ai.google.dev/gemini-api/docs/api-key',
+      steps: [
+        'Create a Gemini API key in Google AI Studio.',
+        'Enter your API key in the settings below.',
+        'Your key is stored locally in your browser.'
+      ]
+    }
+  }
+];
 
 /**
  * Hook for managing providers and models state
+ * Frontend-only: providers use API keys stored in localStorage
  * Models are cached and only fetched once on launch or when manually rescanned
  * @returns {Object} Provider and model state and handlers
  */
@@ -31,14 +70,25 @@ export function useProviders() {
     ''
   );
 
-  // Load providers function
+  // Load providers function - now uses local API key storage
   const loadProviders = useCallback(async () => {
     setIsLoadingProviders(true);
     setProviderError(null);
     
     try {
-      const { providers: providerList, hasAvailable } = await fetchProviders();
+      // Build provider list based on which ones have API keys configured
+      const providerList = FRONTEND_PROVIDERS.map(provider => {
+        const hasKey = apiKeyStorage.has(provider.id);
+        return {
+          ...provider,
+          available: hasKey,
+          unavailable_reason: hasKey ? '' : 'API key not configured. Click to add your key.'
+        };
+      });
+      
       setProviders(providerList);
+      
+      const hasAvailable = providerList.some(p => p.available);
       setProvidersReady(hasAvailable);
       
       if (hasAvailable) {
@@ -59,11 +109,11 @@ export function useProviders() {
         }
       } else {
         setProviderError(
-          'No providers are configured. Add credentials or authenticate a CLI provider to continue.'
+          'No API keys configured. Add your OpenAI or Gemini API key to get started.'
         );
       }
     } catch (error) {
-      setProviderError('Failed to load providers. Check your connection.');
+      setProviderError('Failed to load providers.');
       setProvidersReady(false);
     } finally {
       setIsLoadingProviders(false);
@@ -84,15 +134,27 @@ export function useProviders() {
         return;
       }
       
-      // Check if we already fetched models for this provider this session
-      const alreadyFetched = fetchedModelsRef.current.has(selectedProvider);
+      // Check if this is a frontend provider
+      if (!isFrontendProvider(selectedProvider)) {
+        setModelHint('This provider requires backend support (CLI-based).');
+        setModels([]);
+        return;
+      }
+      
+      // Get API key for this provider
+      const apiKey = apiKeyStorage.get(selectedProvider);
+      if (!apiKey) {
+        setModelHint('API key not configured.');
+        setModels([]);
+        return;
+      }
       
       setIsLoadingModels(true);
       setModelHint('');
       
       try {
-        // Don't force refresh - use cache
-        const { models: modelList, note, isDynamic } = await fetchModels(selectedProvider, false);
+        // Fetch models using the frontend service
+        const modelList = await fetchProviderModels(selectedProvider, apiKey);
         
         // Mark as fetched
         fetchedModelsRef.current.add(selectedProvider);
@@ -107,21 +169,16 @@ export function useProviders() {
         });
         
         setModels(enhancedModels);
-        
-        // Set model hint
-        if (note) {
-          setModelHint(note);
-        } else if (!isDynamic) {
-          setModelHint('Using fallback model list.');
-        }
+        setModelHint(`Loaded ${enhancedModels.length} models.`);
         
         // Use stored model if available, otherwise first in list
         const storedModelAvailable = enhancedModels.some(m => m.id === selectedModel);
         if (!storedModelAvailable && enhancedModels.length > 0) {
           setSelectedModel(enhancedModels[0].id);
         }
-      } catch {
-        setModelHint('Failed to load models.');
+      } catch (error) {
+        console.error('Failed to load models:', error);
+        setModelHint('Failed to load models. Check your API key.');
         setModels([]);
       } finally {
         setIsLoadingModels(false);
@@ -136,28 +193,29 @@ export function useProviders() {
     setIsRescanning(true);
     
     try {
-      await rescanProviders();
-      
       // Clear the fetched cache to force reload
       fetchedModelsRef.current.clear();
       
-      // Reload providers and models
+      // Reload providers
       await loadProviders();
       
-      // If we have a selected provider, reload its models
-      if (selectedProvider) {
-        setIsLoadingModels(true);
-        const { models: modelList, note } = await fetchModels(selectedProvider, true);
-        fetchedModelsRef.current.add(selectedProvider);
-        
-        const enhancedModels = modelList.map(model => {
-          const displayInfo = getModelDisplayInfo(model.id, model.label);
-          return { ...model, ...displayInfo };
-        });
-        
-        setModels(enhancedModels);
-        if (note) setModelHint(note);
-        setIsLoadingModels(false);
+      // If we have a selected provider with an API key, reload its models
+      if (selectedProvider && isFrontendProvider(selectedProvider)) {
+        const apiKey = apiKeyStorage.get(selectedProvider);
+        if (apiKey) {
+          setIsLoadingModels(true);
+          const modelList = await fetchProviderModels(selectedProvider, apiKey);
+          fetchedModelsRef.current.add(selectedProvider);
+          
+          const enhancedModels = modelList.map(model => {
+            const displayInfo = getModelDisplayInfo(model.id, model.label);
+            return { ...model, ...displayInfo };
+          });
+          
+          setModels(enhancedModels);
+          setModelHint(`Loaded ${enhancedModels.length} models.`);
+          setIsLoadingModels(false);
+        }
       }
     } catch (error) {
       console.error('Rescan failed:', error);
@@ -166,17 +224,24 @@ export function useProviders() {
     }
   }, [selectedProvider, loadProviders]);
 
-  // Refresh models for a specific provider (e.g. after filtering changes)
+  // Refresh models for a specific provider (e.g. after API key changes)
   const refreshModelsForProvider = useCallback(async (providerId) => {
     // Clear cache for this provider so next fetch gets fresh data
     fetchedModelsRef.current.delete(providerId);
     
     // If this is the currently selected provider, reload models immediately
-    if (providerId === selectedProvider) {
+    if (providerId === selectedProvider && isFrontendProvider(providerId)) {
+      const apiKey = apiKeyStorage.get(providerId);
+      if (!apiKey) {
+        setModels([]);
+        setModelHint('API key not configured.');
+        return;
+      }
+      
       setIsLoadingModels(true);
       
       try {
-        const { models: modelList, note, isDynamic } = await fetchModels(providerId, false);
+        const modelList = await fetchProviderModels(providerId, apiKey);
         fetchedModelsRef.current.add(providerId);
         
         const enhancedModels = modelList.map(model => {
@@ -185,12 +250,7 @@ export function useProviders() {
         });
         
         setModels(enhancedModels);
-        
-        if (note) {
-          setModelHint(note);
-        } else if (!isDynamic) {
-          setModelHint('Using fallback model list.');
-        }
+        setModelHint(`Loaded ${enhancedModels.length} models.`);
         
         // If currently selected model is no longer available, select first
         const storedModelAvailable = enhancedModels.some(m => m.id === selectedModel);

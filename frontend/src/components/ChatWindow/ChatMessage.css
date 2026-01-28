@@ -251,6 +251,26 @@
   color: var(--text-primary);
 }
 
+.chat-message__score-breakdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.chat-message__score-breakdown-header strong {
+  margin-bottom: 0;
+}
+
+.chat-message__total-score {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+}
+
 .chat-message__scores-grid {
   display: flex;
   flex-direction: column;
@@ -259,7 +279,7 @@
 
 .chat-message__score-item {
   display: grid;
-  grid-template-columns: 120px 1fr 40px;
+  grid-template-columns: 120px 1fr 50px;
   align-items: center;
   gap: var(--space-2);
 }

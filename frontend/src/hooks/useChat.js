@@ -1,9 +1,28 @@
 import { useState, useCallback } from 'react';
-import { improvePrompt, transformResponse } from '../utils/api';
 import { generateId } from '../utils/schema';
+import { callProvider, isFrontendProvider } from '../services/llm';
+import { apiKeyStorage } from '../services/api-key-storage';
+
+/**
+ * Transform LLM response to the frontend format
+ * @param {Object} response - Raw LLM response
+ * @returns {Object} Transformed response
+ */
+function transformResponse(response) {
+  return {
+    needsClarification: Boolean(response.needs_clarification),
+    clarifications: response.clarifications || [],
+    improvedPrompt: response.improved_prompt || '',
+    isAlreadyExcellent: Boolean(response.is_already_excellent),
+    excellenceReason: response.excellence_reason || null,
+    assumptions: response.assumptions || [],
+    learningReport: response.learning_report || null
+  };
+}
 
 /**
  * Hook for managing chat state and messages
+ * Now calls LLM APIs directly from the frontend
  * @returns {Object} Chat state and handlers
  */
 export function useChat() {
@@ -27,6 +46,43 @@ export function useChat() {
   }, []);
 
   /**
+   * Call the LLM provider directly from the frontend
+   */
+  const callLLM = useCallback(async (payload, clarifications = null) => {
+    const providerId = payload.model?.provider;
+    
+    if (!providerId) {
+      throw new Error('No provider selected');
+    }
+    
+    if (!isFrontendProvider(providerId)) {
+      throw new Error(`Provider "${providerId}" requires backend support (CLI-based)`);
+    }
+    
+    const apiKey = apiKeyStorage.get(providerId);
+    if (!apiKey) {
+      throw new Error(`API key not configured for ${providerId}. Please add your API key in settings.`);
+    }
+    
+    // Get prompt type system prompt if available
+    // TODO: In the future, we could load this from a local store or backend
+    const promptTypeSystemPrompt = '';
+    
+    const result = await callProvider({
+      providerId,
+      apiKey,
+      model: payload.model?.name,
+      roughPrompt: payload.roughPrompt,
+      constraints: payload.constraints || [],
+      learningMode: payload.options?.learningMode || false,
+      clarifications,
+      promptTypeSystemPrompt
+    });
+    
+    return result;
+  }, []);
+
+  /**
    * Send a new prompt for improvement
    */
   const sendPrompt = useCallback(async (payload) => {
@@ -43,7 +99,7 @@ export function useChat() {
     setIsLoading(true);
     
     try {
-      const result = await improvePrompt(payload);
+      const result = await callLLM(payload);
       const transformed = transformResponse(result);
       
       if (transformed.needsClarification) {
@@ -104,7 +160,7 @@ export function useChat() {
     } finally {
       setIsLoading(false);
     }
-  }, [addMessage]);
+  }, [addMessage, callLLM]);
 
   /**
    * Submit clarification answers and continue
@@ -141,12 +197,7 @@ export function useChat() {
     setIsLoading(true);
     
     try {
-      const payloadWithClarifications = {
-        ...lastPayload,
-        clarifications: answers
-      };
-      
-      const result = await improvePrompt(payloadWithClarifications);
+      const result = await callLLM(lastPayload, answers);
       const transformed = transformResponse(result);
       
       if (transformed.needsClarification) {
@@ -195,7 +246,7 @@ export function useChat() {
     } finally {
       setIsLoading(false);
     }
-  }, [lastPayload, addMessage]);
+  }, [lastPayload, addMessage, callLLM]);
 
   /**
    * Clear all messages and start fresh
@@ -206,6 +257,106 @@ export function useChat() {
     setPendingClarifications(null);
     setLastPayload(null);
   }, []);
+
+  /**
+   * Cancel the current clarification request
+   * Removes the last clarification message and resets state
+   */
+  const cancelClarification = useCallback(() => {
+    // Remove the last message if it's a clarification
+    setMessages(prev => {
+      const lastMessage = prev[prev.length - 1];
+      if (lastMessage?.type === 'clarification') {
+        return prev.slice(0, -1);
+      }
+      return prev;
+    });
+    setPendingClarifications(null);
+    setLastPayload(null);
+    setError(null);
+  }, []);
+
+  /**
+   * Skip clarifications and continue with freeform text
+   * Allows user to provide additional context instead of answering structured questions
+   */
+  const skipClarifications = useCallback(async (freeformText) => {
+    if (!lastPayload) return;
+    
+    setError(null);
+    
+    // Add user's freeform response as a message
+    if (freeformText && freeformText.trim()) {
+      addMessage({
+        role: 'user',
+        type: 'message',
+        content: freeformText.trim()
+      });
+    } else {
+      addMessage({
+        role: 'user',
+        type: 'message',
+        content: '(Skipped clarifications - proceeding with original prompt)'
+      });
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // Send with freeform text as a special "skip" clarification
+      const skipAnswer = {
+        _skip_clarifications: true,
+        _freeform_context: freeformText?.trim() || ''
+      };
+      
+      const result = await callLLM(lastPayload, skipAnswer);
+      const transformed = transformResponse(result);
+      
+      if (transformed.needsClarification) {
+        // More clarifications needed - show them
+        addMessage({
+          role: 'assistant',
+          type: 'clarification',
+          content: 'I still need a few more details:',
+          metadata: {
+            clarifications: transformed.clarifications
+          }
+        });
+        setPendingClarifications(transformed.clarifications);
+      } else if (transformed.isAlreadyExcellent) {
+        addMessage({
+          role: 'assistant',
+          type: 'excellent-prompt',
+          content: transformed.improvedPrompt,
+          metadata: {
+            excellenceReason: transformed.excellenceReason,
+            learningReport: transformed.learningReport
+          }
+        });
+        setPendingClarifications(null);
+      } else {
+        addMessage({
+          role: 'assistant',
+          type: 'improved-prompt',
+          content: transformed.improvedPrompt,
+          metadata: {
+            assumptions: transformed.assumptions,
+            learningReport: transformed.learningReport
+          }
+        });
+        setPendingClarifications(null);
+      }
+    } catch (err) {
+      setError(err.message);
+      addMessage({
+        role: 'system',
+        type: 'error',
+        content: `Error: ${err.message}`
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [lastPayload, addMessage, callLLM]);
 
   /**
    * Remove a specific message
@@ -221,6 +372,8 @@ export function useChat() {
     pendingClarifications,
     sendPrompt,
     submitClarifications,
+    skipClarifications,
+    cancelClarification,
     clearChat,
     addMessage,
     removeMessage

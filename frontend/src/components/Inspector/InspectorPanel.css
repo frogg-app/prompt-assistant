@@ -279,12 +279,12 @@
   font-size: var(--text-sm);
 }
 
-/* Grading Section */
-.grading-section {
+/* Learning Section */
+.learning-section {
   padding: var(--space-2) 0;
 }
 
-.grading-section__toggle {
+.learning-section__toggle {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -292,48 +292,48 @@
   margin-bottom: var(--space-3);
 }
 
-.grading-section__toggle input[type="checkbox"] {
+.learning-section__toggle input[type="checkbox"] {
   width: 18px;
   height: 18px;
   accent-color: var(--bg-accent);
   cursor: pointer;
 }
 
-.grading-section__toggle-label {
+.learning-section__toggle-label {
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
   color: var(--text-primary);
 }
 
-.grading-section__description {
+.learning-section__description {
   margin: 0 0 var(--space-3);
   font-size: var(--text-sm);
   color: var(--text-secondary);
   line-height: var(--leading-relaxed);
 }
 
-.grading-section__criteria {
+.learning-section__criteria {
   padding: var(--space-3);
   background-color: var(--bg-tertiary);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-default);
 }
 
-.grading-section__criteria-title {
+.learning-section__criteria-title {
   margin: 0 0 var(--space-2);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
   color: var(--text-primary);
 }
 
-.grading-section__criteria ul {
+.learning-section__criteria ul {
   margin: 0;
   padding-left: var(--space-4);
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
 
-.grading-section__criteria li {
+.learning-section__criteria li {
   margin-bottom: var(--space-1);
 }
 

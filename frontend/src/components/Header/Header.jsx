@@ -37,9 +37,18 @@ const MoonIcon = ({ size = 18 }) => (
   </svg>
 );
 
+const PlusIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 12h14" />
+    <path d="M12 5v14" />
+  </svg>
+);
+
 export default function Header({
   theme = 'system',
-  onThemeChange
+  onThemeChange,
+  onNewChat,
+  hasMessages = false
 }) {
   const toggleTheme = () => {
     const nextTheme = theme === 'light' ? 'dark' : 'light';
@@ -54,6 +63,18 @@ export default function Header({
       </div>
       
       <nav className="header__actions" aria-label="Header actions">
+        {hasMessages && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onNewChat}
+            aria-label="Start new chat"
+            title="Start new chat"
+          >
+            <PlusIcon />
+            <span className="header__button-text">New Chat</span>
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"

@@ -35,7 +35,8 @@
   gap: var(--space-1);
 }
 
-.header__action-text {
+.header__action-text,
+.header__button-text {
   display: none;
 }
 
@@ -45,8 +46,10 @@
     padding: 0 var(--space-6);
   }
   
-  .header__action-text {
+  .header__action-text,
+  .header__button-text {
     display: inline;
+    margin-left: var(--space-1);
   }
   
   .header__actions {
