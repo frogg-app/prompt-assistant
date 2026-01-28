@@ -1,13 +1,13 @@
 # Prompt Improver
 
-A web app that turns rough, user-written prompts into polished prompts for specific LLM providers. Optional learning mode provides a compact critique and grading report in the same model call.
+A web app that turns rough, user-written prompts into polished prompts for specific LLM providers. Optional Learning Mode provides detailed feedback with scores out of 10 for each category plus a total score.
 
 ## Features
 
 - **Frontend-only API calls**: OpenAI and Gemini work directly from your browser - no backend needed!
 - Your API keys are stored locally in your browser and never sent to any server
 - Prompt improvement with clarifications workflow when needed
-- Optional Learning mode with grades, category scores, and actionable coaching
+- Optional Learning Mode with category scores (0-10), total score, and actionable coaching
 - Clean, modern chat-style interface
 
 ## Quick Start (Frontend-Only)

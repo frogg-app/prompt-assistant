@@ -54,7 +54,7 @@ export default function App() {
     []
   );
   
-  // Grading mode (opt-in)
+  // Learning mode (opt-in) - provides detailed feedback and scores
   const [gradingMode, setGradingMode] = useState(false);
   
   // Provider and model state
@@ -296,7 +296,7 @@ export default function App() {
           // Constraints
           constraints={constraints}
           onConstraintsChange={setConstraints}
-          // Grading mode
+          // Learning mode
           gradingMode={gradingMode}
           onGradingModeChange={setGradingMode}
           // Disabled state

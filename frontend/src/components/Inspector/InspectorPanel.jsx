@@ -117,7 +117,7 @@ export default function InspectorPanel({
   // Constraints
   constraints = [],
   onConstraintsChange,
-  // Grading mode
+  // Learning mode
   gradingMode = false,
   onGradingModeChange,
   // Disabled state
@@ -263,9 +263,9 @@ export default function InspectorPanel({
             />
           </Section>
 
-          {/* Grading Mode Section */}
+          {/* Learning Mode Section */}
           <Section 
-            title="Grading Mode" 
+            title="Learning Mode" 
             icon={
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
@@ -274,23 +274,23 @@ export default function InspectorPanel({
             }
             defaultOpen={false}
           >
-            <div className="grading-section">
-              <label className="grading-section__toggle">
+            <div className="learning-section">
+              <label className="learning-section__toggle">
                 <input
                   type="checkbox"
                   checked={gradingMode}
                   onChange={(e) => onGradingModeChange?.(e.target.checked)}
                   disabled={disabled}
                 />
-                <span className="grading-section__toggle-label">Enable prompt grading</span>
+                <span className="learning-section__toggle-label">Enable learning mode</span>
               </label>
-              <p className="grading-section__description">
-                When enabled, your prompt will be graded on clarity, context, constraints, and more. 
-                Excellent prompts (Grade A) will be confirmed rather than modified.
+              <p className="learning-section__description">
+                Get detailed feedback on your prompt with scores out of 10 for each category, 
+                plus a total score. Excellent prompts (8.5+/10) will be confirmed rather than modified.
               </p>
               {gradingMode && (
-                <div className="grading-section__criteria">
-                  <p className="grading-section__criteria-title">Grading criteria:</p>
+                <div className="learning-section__criteria">
+                  <p className="learning-section__criteria-title">Scoring criteria (each scored 0-10):</p>
                   <ul>
                     <li>Clarity & Specificity</li>
                     <li>Context Completeness</li>

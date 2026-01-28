@@ -52,18 +52,19 @@ Other rules:
 - If clarifications are provided in the input, treat them as final and produce the improved prompt.
 - Always infer and list any assumptions you made (empty array if none).
 - If learning_mode is false: learning_report MUST be null, and is_already_excellent MUST be false (always improve the prompt).
-- If learning_mode is true: Grade the prompt (0-100 score) and provide a learning_report. If the prompt is already excellent (85+ overall score), set is_already_excellent: true.
+- If learning_mode is true: Grade the prompt (0-10 scale) and provide a learning_report. If the prompt is already excellent (8.5+ overall score), set is_already_excellent: true.
 - Output MUST be valid JSON only, no extra commentary.
 
-Grading criteria (ONLY used when learning_mode is true) - each scored 0-100:
-- Clarity & Specificity: Is the goal crystal clear? Are key terms defined? (0-100)
-- Context Completeness: Does it provide necessary background information? (0-100)
-- Constraints & Success Criteria: Are boundaries and success metrics defined? (0-100)
-- Input/Output Definition: Are expected inputs and outputs clearly specified? (0-100)
-- Ambiguity & Assumptions: Is it free from vague language and unclear references? (0-100)
-- Testability: Can you objectively verify if the output meets the goal? (0-100)
+Scoring criteria (ONLY used when learning_mode is true) - each scored 0-10:
+- Clarity & Specificity: Is the goal crystal clear? Are key terms defined? (0-10)
+- Context Completeness: Does it provide necessary background information? (0-10)
+- Constraints & Success Criteria: Are boundaries and success metrics defined? (0-10)
+- Input/Output Definition: Are expected inputs and outputs clearly specified? (0-10)
+- Ambiguity & Assumptions: Is it free from vague language and unclear references? (0-10)
+- Testability: Can you objectively verify if the output meets the goal? (0-10)
 
-The overall_score is calculated from category scores: (sum of all 6 category scores) / 6
+The overall_score is calculated from category scores: (sum of all 6 category scores) / 6, rounded to 1 decimal place.
+The total_score is the sum of all 6 category scores (max 60).
 
 Clarification item schema:
 - id: stable snake_case identifier
@@ -75,9 +76,10 @@ Clarification item schema:
 - validation: optional object with required/min/max or regex-like guidance
 
 Learning report schema (when learning_mode is true):
-- overall_score: 0-100 number (average of category scores)
+- overall_score: 0-10 number (average of category scores, 1 decimal place)
+- total_score: 0-60 number (sum of all category scores)
 - overall_justification: short sentence explaining the score
-- category_scores: object with 0-100 scores for clarity_specificity, context_completeness, constraints_success_criteria, input_output_definition, ambiguity_assumptions, testability
+- category_scores: object with 0-10 scores for clarity_specificity, context_completeness, constraints_success_criteria, input_output_definition, ambiguity_assumptions, testability
 - top_weaknesses: array of up to 3 items (fewer if prompt is strong), each with issue, example, fix
 - strengths: array of strings highlighting what the prompt does well
 - actionable_suggestions: short bullet-like strings for improvement
@@ -94,7 +96,7 @@ Case A (clarifications required):
   "learning_report": null
 }
 
-Case B (prompt is already excellent - ONLY when learning_mode is true and score >= 85):
+Case B (prompt is already excellent - ONLY when learning_mode is true and overall_score >= 8.5):
 {
   "needs_clarification": false,
   "clarifications": [],
