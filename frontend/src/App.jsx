@@ -40,9 +40,6 @@ export default function App() {
   // Theme state
   const [theme, setTheme] = useLocalStorage(STORAGE_KEYS.THEME, 'system');
   
-  // Sidebar visibility
-  const [isSidebarOpen, setIsSidebarOpen] = useLocalStorage('sidebar-open', true);
-  
   // Inspector panel visibility
   const [isInspectorOpen, setIsInspectorOpen] = useState(true);
   
@@ -141,11 +138,6 @@ export default function App() {
   const handleThemeChange = useCallback((newTheme) => {
     setTheme(newTheme);
   }, [setTheme]);
-
-  // Toggle sidebar
-  const handleToggleSidebar = useCallback(() => {
-    setIsSidebarOpen(prev => !prev);
-  }, [setIsSidebarOpen]);
 
   // Toggle inspector panel
   const handleToggleInspector = useCallback(() => {
@@ -332,8 +324,6 @@ export default function App() {
       <div className="app__layout">
         {/* Left Sidebar */}
         <Sidebar
-          isOpen={isSidebarOpen}
-          onToggle={handleToggleSidebar}
           chatSessions={sessions}
           currentSessionId={currentSessionId}
           onNewChat={handleNewChat}
