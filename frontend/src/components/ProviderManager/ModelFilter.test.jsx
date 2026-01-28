@@ -206,8 +206,8 @@ describe('ModelFilter', () => {
     await userEvent.click(checkboxes[0]); // gpt-4o
     await userEvent.click(checkboxes[1]); // gpt-4o-mini
 
-    // Click save
-    const saveButton = screen.getByText('Save');
+    // Click save (button text is "Save Filter")
+    const saveButton = screen.getByText('Save Filter');
     await userEvent.click(saveButton);
 
     await waitFor(() => {

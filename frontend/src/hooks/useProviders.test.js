@@ -1,16 +1,29 @@
 /**
  * useProviders Hook Tests
+ * Updated for frontend-only API key management
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useProviders } from './useProviders';
 
-// Mock the api module
-vi.mock('../utils/api', () => ({
-  fetchProviders: vi.fn(),
-  fetchModels: vi.fn(),
-  rescanProviders: vi.fn()
+// Mock the LLM services
+vi.mock('../services/llm', () => ({
+  isFrontendProvider: vi.fn((id) => id === 'openai' || id === 'gemini'),
+  fetchProviderModels: vi.fn(() => Promise.resolve([
+    { id: 'gpt-4o', label: 'GPT-4o' },
+    { id: 'gpt-4o-mini', label: 'GPT-4o Mini' }
+  ]))
+}));
+
+// Mock the API key storage
+vi.mock('../services/api-key-storage', () => ({
+  apiKeyStorage: {
+    has: vi.fn((id) => id === 'openai'), // Only openai has a key by default
+    get: vi.fn((id) => id === 'openai' ? 'sk-test-key' : ''),
+    save: vi.fn(),
+    remove: vi.fn()
+  }
 }));
 
 // Mock the schema module
@@ -26,38 +39,12 @@ vi.mock('./useLocalStorage', () => ({
   })
 }));
 
-import { fetchProviders, fetchModels, rescanProviders } from '../utils/api';
+import { fetchProviderModels } from '../services/llm';
+import { apiKeyStorage } from '../services/api-key-storage';
 
 describe('useProviders', () => {
-  const mockProviders = [
-    { id: 'openai', name: 'OpenAI', available: true },
-    { id: 'claude', name: 'Claude', available: true },
-    { id: 'copilot', name: 'Copilot', available: false }
-  ];
-
-  const mockModels = [
-    { id: 'gpt-4o', label: 'GPT-4o' },
-    { id: 'gpt-4o-mini', label: 'GPT-4o Mini' }
-  ];
-
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    fetchProviders.mockResolvedValue({
-      providers: mockProviders,
-      hasAvailable: true
-    });
-    
-    fetchModels.mockResolvedValue({
-      models: mockModels,
-      note: '',
-      isDynamic: true
-    });
-    
-    rescanProviders.mockResolvedValue({
-      message: 'Rescan completed',
-      results: {}
-    });
   });
 
   afterEach(() => {
@@ -73,26 +60,30 @@ describe('useProviders', () => {
       expect(result.current.isLoadingProviders).toBe(false);
     });
 
-    expect(result.current.providers).toEqual(mockProviders);
-    expect(result.current.providersReady).toBe(true);
+    // Should have 2 providers (openai and gemini)
+    expect(result.current.providers).toHaveLength(2);
+    expect(result.current.providers[0].id).toBe('openai');
+    expect(result.current.providers[1].id).toBe('gemini');
   });
 
-  it('should filter to available providers correctly', async () => {
+  it('should mark providers as available based on API key storage', async () => {
     const { result } = renderHook(() => useProviders());
 
     await waitFor(() => {
       expect(result.current.isLoadingProviders).toBe(false);
     });
 
-    const availableProviders = result.current.providers.filter(p => p.available);
-    expect(availableProviders).toHaveLength(2);
+    // OpenAI has a key, Gemini doesn't
+    const openai = result.current.providers.find(p => p.id === 'openai');
+    const gemini = result.current.providers.find(p => p.id === 'gemini');
+    
+    expect(openai.available).toBe(true);
+    expect(gemini.available).toBe(false);
   });
 
-  it('should set providerError when no providers are available', async () => {
-    fetchProviders.mockResolvedValue({
-      providers: [{ id: 'openai', available: false }],
-      hasAvailable: false
-    });
+  it('should set providerError when no providers have API keys', async () => {
+    // Mock no API keys configured
+    apiKeyStorage.has.mockReturnValue(false);
 
     const { result } = renderHook(() => useProviders());
 
@@ -100,7 +91,7 @@ describe('useProviders', () => {
       expect(result.current.isLoadingProviders).toBe(false);
     });
 
-    expect(result.current.providerError).toContain('No providers are configured');
+    expect(result.current.providerError).toContain('No API keys configured');
     expect(result.current.providersReady).toBe(false);
   });
 
@@ -120,48 +111,28 @@ describe('useProviders', () => {
       expect(result.current.isLoadingModels).toBe(false);
     });
 
-    expect(fetchModels).toHaveBeenCalledWith('openai', false);
+    expect(fetchProviderModels).toHaveBeenCalledWith('openai', 'sk-test-key');
     expect(result.current.models).toHaveLength(2);
   });
 
-  it('should cache models and not refetch on provider reselection', async () => {
+  it('should not load models for provider without API key', async () => {
     const { result } = renderHook(() => useProviders());
 
     await waitFor(() => {
       expect(result.current.isLoadingProviders).toBe(false);
     });
 
-    // Select provider first time
+    // Select gemini which has no API key
     act(() => {
-      result.current.setSelectedProvider('openai');
-    });
-
-    await waitFor(() => {
-      expect(result.current.models).toHaveLength(2);
-    });
-
-    const fetchCount = fetchModels.mock.calls.length;
-
-    // Change to different provider
-    act(() => {
-      result.current.setSelectedProvider('claude');
+      result.current.setSelectedProvider('gemini');
     });
 
     await waitFor(() => {
       expect(result.current.isLoadingModels).toBe(false);
     });
 
-    // Change back - should not refetch due to cache
-    act(() => {
-      result.current.setSelectedProvider('openai');
-    });
-
-    await waitFor(() => {
-      expect(result.current.isLoadingModels).toBe(false);
-    });
-
-    // Models should be cached from first fetch
-    expect(result.current.models).toHaveLength(2);
+    expect(result.current.modelHint).toContain('API key not configured');
+    expect(result.current.models).toEqual([]);
   });
 
   it('should expose rescanProviders function', async () => {
@@ -197,7 +168,7 @@ describe('useProviders', () => {
 
     // Change provider
     act(() => {
-      result.current.setSelectedProvider('claude');
+      result.current.setSelectedProvider('gemini');
     });
 
     // Model should be cleared
@@ -222,21 +193,8 @@ describe('useProviders', () => {
     expect(result.current.selectedModel).toBe('gpt-4o');
   });
 
-  it('should handle provider fetch error', async () => {
-    fetchProviders.mockRejectedValue(new Error('Network error'));
-
-    const { result } = renderHook(() => useProviders());
-
-    await waitFor(() => {
-      expect(result.current.isLoadingProviders).toBe(false);
-    });
-
-    expect(result.current.providerError).toContain('Failed to load providers');
-    expect(result.current.providersReady).toBe(false);
-  });
-
   it('should handle model fetch error gracefully', async () => {
-    fetchModels.mockRejectedValue(new Error('Model fetch failed'));
+    fetchProviderModels.mockRejectedValue(new Error('Model fetch failed'));
 
     const { result } = renderHook(() => useProviders());
 
@@ -256,17 +214,24 @@ describe('useProviders', () => {
     expect(result.current.models).toEqual([]);
   });
 
-  it('should set isRescanning during rescan', async () => {
+  it('should return currentProvider and currentModel', async () => {
     const { result } = renderHook(() => useProviders());
 
     await waitFor(() => {
       expect(result.current.isLoadingProviders).toBe(false);
     });
 
-    expect(result.current.isRescanning).toBe(false);
+    act(() => {
+      result.current.setSelectedProvider('openai');
+    });
 
-    // Note: We can't easily test the intermediate state without more complex async handling
-    // This tests that the function exists and can be called
-    expect(typeof result.current.rescanProviders).toBe('function');
+    await waitFor(() => {
+      expect(result.current.models).toHaveLength(2);
+    });
+
+    expect(result.current.currentProvider).toBeTruthy();
+    expect(result.current.currentProvider.id).toBe('openai');
+    expect(result.current.currentModel).toBeTruthy();
+    expect(result.current.currentModel.id).toBe('gpt-4o');
   });
 });

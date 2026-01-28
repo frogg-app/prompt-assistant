@@ -20,7 +20,7 @@ import { useProviders } from './hooks/useProviders';
 import { usePromptTypes } from './hooks/usePromptTypes';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { buildPromptPayload, validatePayload } from './utils/schema';
-import { STORAGE_KEYS, API_BASE } from './utils/constants';
+import { STORAGE_KEYS } from './utils/constants';
 import './styles/globals.css';
 
 /**
@@ -215,50 +215,6 @@ export default function App() {
     submitClarifications(answers);
   }, [submitClarifications]);
 
-  // Provider management handlers
-  const handleProviderAdded = useCallback(async (providerData) => {
-    const response = await fetch(`${API_BASE}/providers`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(providerData)
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to add provider');
-    }
-    
-    await refreshProviders();
-  }, [refreshProviders]);
-
-  const handleProviderUpdated = useCallback(async (providerId, updates) => {
-    const response = await fetch(`${API_BASE}/providers/${providerId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates)
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to update provider');
-    }
-    
-    await refreshProviders();
-  }, [refreshProviders]);
-
-  const handleProviderDeleted = useCallback(async (providerId) => {
-    const response = await fetch(`${API_BASE}/providers/${providerId}`, {
-      method: 'DELETE'
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to delete provider');
-    }
-    
-    await refreshProviders();
-  }, [refreshProviders]);
-
   // Determine if input is disabled (prevents typing)
   const isInputDisabled = useMemo(() => {
     return (
@@ -355,12 +311,8 @@ export default function App() {
         isOpen={isProviderManagerOpen}
         onClose={() => setIsProviderManagerOpen(false)}
         providers={providers}
-        onProviderAdded={handleProviderAdded}
-        onProviderUpdated={handleProviderUpdated}
-        onProviderDeleted={handleProviderDeleted}
         onRescan={rescanProviders}
         isRescanning={isRescanning}
-        onModelsFiltered={refreshModelsForProvider}
       />
       
       {/* Prompt Type Manager Modal */}
