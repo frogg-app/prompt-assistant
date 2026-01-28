@@ -47,7 +47,7 @@ export default function AuthModal({ isOpen, onClose, requireAuth = false }) {
     if (requireAuth && !user) {
       return; // Don't allow closing
     }
-    handleClose();
+    onClose();
   };
 
   const handleEmailSignIn = async (e) => {
