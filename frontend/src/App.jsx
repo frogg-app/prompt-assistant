@@ -40,8 +40,30 @@ export default function App() {
   // Theme state
   const [theme, setTheme] = useLocalStorage(STORAGE_KEYS.THEME, 'system');
   
-  // Inspector panel visibility
-  const [isInspectorOpen, setIsInspectorOpen] = useState(true);
+  // Inspector panel visibility - closed by default on mobile
+  const [isInspectorOpen, setIsInspectorOpen] = useState(() => {
+    // Default to closed on mobile screens
+    return typeof window !== 'undefined' && window.innerWidth >= 1200;
+  });
+  
+  // Keep inspector visibility in sync with viewport size
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      const shouldBeOpen = window.innerWidth >= 1200;
+      setIsInspectorOpen(shouldBeOpen);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+  
+  // Sidebar visibility (mobile)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Provider manager visibility
   const [isProviderManagerOpen, setIsProviderManagerOpen] = useState(false);
@@ -49,8 +71,15 @@ export default function App() {
   // Prompt type manager visibility
   const [isPromptTypeManagerOpen, setIsPromptTypeManagerOpen] = useState(false);
   
-  // Auth modal visibility
+  // Auth modal visibility - open by default if not authenticated
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  
+  // Show auth modal if user is not logged in
+  useEffect(() => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+    }
+  }, [user]);
   
   // Setup wizard visibility
   const [isSetupWizardOpen, setIsSetupWizardOpen] = useState(false);
@@ -142,6 +171,11 @@ export default function App() {
   // Toggle inspector panel
   const handleToggleInspector = useCallback(() => {
     setIsInspectorOpen(prev => !prev);
+  }, []);
+
+  // Toggle sidebar (mobile)
+  const handleToggleSidebar = useCallback(() => {
+    setIsSidebarOpen(prev => !prev);
   }, []);
 
   // Build current payload for export
@@ -318,6 +352,7 @@ export default function App() {
         onThemeChange={handleThemeChange}
         onNewChat={handleNewChat}
         hasMessages={messages.length > 0}
+        onMenuClick={handleToggleSidebar}
       />
       
       {/* Main layout */}
@@ -333,6 +368,8 @@ export default function App() {
           onSignIn={() => setIsAuthModalOpen(true)}
           onSignOut={signOut}
           onOpenSettings={() => setIsProviderManagerOpen(true)}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
         
         {/* Chat area */}
@@ -419,6 +456,7 @@ export default function App() {
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
+        requireAuth={!user}
       />
       
       {/* Setup Wizard */}

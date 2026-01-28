@@ -126,6 +126,24 @@
 }
 
 /* Responsive */
+@media (max-width: 767px) {
+  .chat-window {
+    padding: var(--space-3);
+  }
+  
+  .chat-empty {
+    padding: var(--space-4);
+  }
+  
+  .chat-empty__title {
+    font-size: var(--text-lg);
+  }
+  
+  .chat-empty__tips {
+    padding: var(--space-3);
+  }
+}
+
 @media (min-width: 768px) {
   .chat-window {
     padding: var(--space-6);

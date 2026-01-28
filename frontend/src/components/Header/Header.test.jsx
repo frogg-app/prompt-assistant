@@ -12,27 +12,22 @@ describe('Header', () => {
     expect(screen.getByText('Prompt Assistant')).toBeInTheDocument();
   });
 
-  it('should render export button', () => {
-    render(<Header />);
-    expect(screen.getByLabelText(/export/i)).toBeInTheDocument();
-  });
-
   it('should render theme toggle button', () => {
     render(<Header />);
     expect(screen.getByLabelText(/switch to/i)).toBeInTheDocument();
   });
 
-  it('should render inspector toggle button', () => {
-    render(<Header />);
-    expect(screen.getByLabelText(/options panel/i)).toBeInTheDocument();
+  it('should render menu button on mobile', () => {
+    render(<Header onMenuClick={vi.fn()} />);
+    expect(screen.getByLabelText(/open navigation menu/i)).toBeInTheDocument();
   });
 
-  it('should call onExportJSON when export button is clicked', () => {
-    const onExportJSON = vi.fn();
-    render(<Header onExportJSON={onExportJSON} />);
+  it('should call onMenuClick when menu button is clicked', () => {
+    const onMenuClick = vi.fn();
+    render(<Header onMenuClick={onMenuClick} />);
     
-    fireEvent.click(screen.getByLabelText(/export/i));
-    expect(onExportJSON).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByLabelText(/open navigation menu/i));
+    expect(onMenuClick).toHaveBeenCalledTimes(1);
   });
 
   it('should call onThemeChange when theme toggle is clicked', () => {
@@ -51,21 +46,22 @@ describe('Header', () => {
     expect(onThemeChange).toHaveBeenCalledWith('light');
   });
 
-  it('should call onToggleInspector when panel button is clicked', () => {
-    const onToggleInspector = vi.fn();
-    render(<Header onToggleInspector={onToggleInspector} />);
+  it('should show new chat button when there are messages', () => {
+    const onNewChat = vi.fn();
+    render(<Header hasMessages={true} onNewChat={onNewChat} />);
+    expect(screen.getByLabelText(/start new chat/i)).toBeInTheDocument();
+  });
+
+  it('should call onNewChat when new chat button is clicked', () => {
+    const onNewChat = vi.fn();
+    render(<Header hasMessages={true} onNewChat={onNewChat} />);
     
-    fireEvent.click(screen.getByLabelText(/options panel/i));
-    expect(onToggleInspector).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByLabelText(/start new chat/i));
+    expect(onNewChat).toHaveBeenCalledTimes(1);
   });
 
-  it('should show "Hide" when inspector is visible', () => {
-    render(<Header inspectorVisible={true} />);
-    expect(screen.getByLabelText(/hide options panel/i)).toBeInTheDocument();
-  });
-
-  it('should show "Show" when inspector is hidden', () => {
-    render(<Header inspectorVisible={false} />);
-    expect(screen.getByLabelText(/show options panel/i)).toBeInTheDocument();
+  it('should not show new chat button when there are no messages', () => {
+    render(<Header hasMessages={false} />);
+    expect(screen.queryByLabelText(/start new chat/i)).not.toBeInTheDocument();
   });
 });

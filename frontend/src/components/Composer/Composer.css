@@ -213,6 +213,7 @@
 @media (max-width: 640px) {
   .composer {
     padding: var(--space-3);
+    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
   }
 
   .composer__container {

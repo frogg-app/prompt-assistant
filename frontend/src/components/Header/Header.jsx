@@ -44,11 +44,20 @@ const PlusIcon = ({ size = 18 }) => (
   </svg>
 );
 
+const MenuIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 12h18" />
+    <path d="M3 6h18" />
+    <path d="M3 18h18" />
+  </svg>
+);
+
 export default function Header({
   theme = 'system',
   onThemeChange,
   onNewChat,
-  hasMessages = false
+  hasMessages = false,
+  onMenuClick
 }) {
   const toggleTheme = () => {
     const nextTheme = theme === 'light' ? 'dark' : 'light';
@@ -57,6 +66,18 @@ export default function Header({
 
   return (
     <header className="header">
+      {/* Mobile menu button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onMenuClick}
+        className="header__menu-button"
+        aria-label="Open navigation menu"
+        title="Open menu"
+      >
+        <MenuIcon />
+      </Button>
+      
       <div className="header__brand">
         <SparklesIcon size={24} />
         <h1 className="header__title">Prompt Assistant</h1>
