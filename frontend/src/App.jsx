@@ -90,6 +90,8 @@ export default function App() {
     error: chatError,
     sendPrompt,
     submitClarifications,
+    skipClarifications,
+    cancelClarification,
     clearChat
   } = useChat();
 
@@ -215,6 +217,21 @@ export default function App() {
     submitClarifications(answers);
   }, [submitClarifications]);
 
+  // Handle clarification skip (with optional freeform text)
+  const handleClarificationSkip = useCallback((freeformText) => {
+    skipClarifications(freeformText);
+  }, [skipClarifications]);
+
+  // Handle clarification cancel
+  const handleClarificationCancel = useCallback(() => {
+    cancelClarification();
+  }, [cancelClarification]);
+
+  // Handle new chat
+  const handleNewChat = useCallback(() => {
+    clearChat();
+  }, [clearChat]);
+
   // Determine if input is disabled (prevents typing)
   const isInputDisabled = useMemo(() => {
     return (
@@ -238,9 +255,8 @@ export default function App() {
       <Header
         theme={theme}
         onThemeChange={handleThemeChange}
-        onExportJSON={handleExportJSON}
-        onToggleInspector={handleToggleInspector}
-        inspectorVisible={isInspectorOpen}
+        onNewChat={handleNewChat}
+        hasMessages={messages.length > 0}
       />
       
       {/* Main layout */}
@@ -259,6 +275,8 @@ export default function App() {
             messages={messages}
             isLoading={isChatLoading}
             onClarificationSubmit={handleClarificationSubmit}
+            onClarificationCancel={handleClarificationCancel}
+            onClarificationSkip={handleClarificationSkip}
           />
           
           {/* Composer */}

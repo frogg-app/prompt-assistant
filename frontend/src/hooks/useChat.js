@@ -259,6 +259,106 @@ export function useChat() {
   }, []);
 
   /**
+   * Cancel the current clarification request
+   * Removes the last clarification message and resets state
+   */
+  const cancelClarification = useCallback(() => {
+    // Remove the last message if it's a clarification
+    setMessages(prev => {
+      const lastMessage = prev[prev.length - 1];
+      if (lastMessage?.type === 'clarification') {
+        return prev.slice(0, -1);
+      }
+      return prev;
+    });
+    setPendingClarifications(null);
+    setLastPayload(null);
+    setError(null);
+  }, []);
+
+  /**
+   * Skip clarifications and continue with freeform text
+   * Allows user to provide additional context instead of answering structured questions
+   */
+  const skipClarifications = useCallback(async (freeformText) => {
+    if (!lastPayload) return;
+    
+    setError(null);
+    
+    // Add user's freeform response as a message
+    if (freeformText && freeformText.trim()) {
+      addMessage({
+        role: 'user',
+        type: 'message',
+        content: freeformText.trim()
+      });
+    } else {
+      addMessage({
+        role: 'user',
+        type: 'message',
+        content: '(Skipped clarifications - proceeding with original prompt)'
+      });
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // Send with freeform text as a special "skip" clarification
+      const skipAnswer = {
+        _skip_clarifications: true,
+        _freeform_context: freeformText?.trim() || ''
+      };
+      
+      const result = await callLLM(lastPayload, skipAnswer);
+      const transformed = transformResponse(result);
+      
+      if (transformed.needsClarification) {
+        // More clarifications needed - show them
+        addMessage({
+          role: 'assistant',
+          type: 'clarification',
+          content: 'I still need a few more details:',
+          metadata: {
+            clarifications: transformed.clarifications
+          }
+        });
+        setPendingClarifications(transformed.clarifications);
+      } else if (transformed.isAlreadyExcellent) {
+        addMessage({
+          role: 'assistant',
+          type: 'excellent-prompt',
+          content: transformed.improvedPrompt,
+          metadata: {
+            excellenceReason: transformed.excellenceReason,
+            learningReport: transformed.learningReport
+          }
+        });
+        setPendingClarifications(null);
+      } else {
+        addMessage({
+          role: 'assistant',
+          type: 'improved-prompt',
+          content: transformed.improvedPrompt,
+          metadata: {
+            assumptions: transformed.assumptions,
+            learningReport: transformed.learningReport
+          }
+        });
+        setPendingClarifications(null);
+      }
+    } catch (err) {
+      setError(err.message);
+      addMessage({
+        role: 'system',
+        type: 'error',
+        content: `Error: ${err.message}`
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [lastPayload, addMessage, callLLM]);
+
+  /**
    * Remove a specific message
    */
   const removeMessage = useCallback((messageId) => {
@@ -272,6 +372,8 @@ export function useChat() {
     pendingClarifications,
     sendPrompt,
     submitClarifications,
+    skipClarifications,
+    cancelClarification,
     clearChat,
     addMessage,
     removeMessage

@@ -7,8 +7,16 @@ import { useState, useEffect } from 'react';
 import { Button } from '../ui';
 import './ClarificationCard.css';
 
-export default function ClarificationCard({ clarifications, onSubmit, isLoading }) {
+export default function ClarificationCard({ 
+  clarifications, 
+  onSubmit, 
+  onCancel,
+  onSkip,
+  isLoading 
+}) {
   const [answers, setAnswers] = useState({});
+  const [freeformText, setFreeformText] = useState('');
+  const [showFreeform, setShowFreeform] = useState(false);
 
   // Initialize answers with defaults
   useEffect(() => {
@@ -35,6 +43,14 @@ export default function ClarificationCard({ clarifications, onSubmit, isLoading 
     onSubmit(answers);
   };
 
+  const handleSkip = () => {
+    onSkip?.(freeformText);
+  };
+
+  const handleCancel = () => {
+    onCancel?.();
+  };
+
   const isMissingRequired = (item) => {
     const value = answers[item.id];
     const required = item.validation?.required;
@@ -59,7 +75,7 @@ export default function ClarificationCard({ clarifications, onSubmit, isLoading 
     <div className="clarification-card">
       <div className="clarification-card__header">
         <h3>Clarifying the Objective</h3>
-        <p>Answer these questions to help refine your prompt better.</p>
+        <p>Answer these questions to help refine your prompt, or skip with your own context.</p>
       </div>
 
       <div className="clarification-card__items">
@@ -76,14 +92,54 @@ export default function ClarificationCard({ clarifications, onSubmit, isLoading 
         ))}
       </div>
 
+      {/* Freeform text section */}
+      <div className="clarification-card__freeform">
+        <button 
+          className="clarification-card__freeform-toggle"
+          onClick={() => setShowFreeform(!showFreeform)}
+          type="button"
+        >
+          {showFreeform ? '▼' : '▶'} Or provide your own context instead
+        </button>
+        
+        {showFreeform && (
+          <div className="clarification-card__freeform-input">
+            <textarea
+              value={freeformText}
+              onChange={(e) => setFreeformText(e.target.value)}
+              placeholder="Add any additional context or clarifications here..."
+              rows={3}
+              className="clarification-input"
+            />
+            <p className="clarification-card__freeform-hint">
+              Use this to provide context in your own words, then click &quot;Skip &amp; Continue&quot;
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="clarification-card__actions">
+        <Button
+          variant="ghost"
+          onClick={handleCancel}
+          disabled={isLoading}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={handleSkip}
+          disabled={isLoading}
+        >
+          Skip &amp; Continue
+        </Button>
         <Button
           variant="primary"
           onClick={handleSubmit}
           disabled={isLoading || !hasAllRequired}
           loading={isLoading}
         >
-          Continue
+          Submit Answers
         </Button>
       </div>
     </div>
