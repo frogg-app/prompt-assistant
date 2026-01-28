@@ -18,7 +18,7 @@ export default function ClarificationCard({
   const [freeformText, setFreeformText] = useState('');
   const [showFreeform, setShowFreeform] = useState(false);
 
-  // Initialize answers with defaults
+  // Initialize answers with defaults and reset freeform state
   useEffect(() => {
     const initial = {};
     clarifications.forEach((item) => {
@@ -33,6 +33,9 @@ export default function ClarificationCard({
       }
     });
     setAnswers(initial);
+    // Reset freeform state when clarifications change
+    setFreeformText('');
+    setShowFreeform(false);
   }, [clarifications]);
 
   const updateAnswer = (id, value) => {
